@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Château d'Aiglion</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<!-- Reset confirmation modal -->
+<div class="modal-bg" id="reset-modal">
+  <div class="modal-box">
+    <h2 style="color:var(--red)">⟳ Réinitialiser le Domaine ?</h2>
+    <p>Cette action <strong>effacera toute la partie</strong> et remettra le domaine à l'état initial. Elle est irréversible.</p>
+    <div class="m-btns">
+      <button class="btn-no" onclick="closeResetModal()">Annuler</button>
+      <button class="btn-ok" style="background:linear-gradient(180deg,#3a0808,#200404);border-color:#8b2020;color:#f08080" onclick="confirmReset()">Réinitialiser</button>
+    </div>
+  </div>
+</div>
+
+
+<script type="module">
+// ══ FIREBASE SETUP ══
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDLSGsNlUDV-AbqHlbzO2nPzXt1f0mTm9I",
+  authDomain: "aiglion.firebaseapp.com",
+  databaseURL: "https://aiglion-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "aiglion",
+  storageBucket: "aiglion.firebasestorage.app",
+  messagingSenderId: "669872230846",
+  appId: "1:669872230846:web:3af6aa0db87fa06fe529ef"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const domainRef = ref(db, 'aiglion/state');
+
+// Expose Firebase write/listen globally so the main script can use it
+window._fbSet = (data) => set(domainRef, data);
+window._fbListen = (cb) => onValue(domainRef, (snapshot) => cb(snapshot.val()));
+window._fbReady = true;
+</script>
+
+<style>
+:root {
+  --gold:#c9a84c; --gold-light:#e8c97a; --gold-dark:#8a6a1e;
+  --parchment:#f0e6cc; --parchment-mid:#e0d0a8; --parchment-dark:#c8b882;
+  --ink:#1e1408; --ink-mid:#3d2c10;
+  --stone:#5a4e3a; --stone-light:#7a6a52;
+  --red:#8b2020; --green:#2a5c2a; --blue:#1a3a5c;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IM Fell English',serif;background:#0e0b06;color:var(--ink);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* HEADER */
+header{background:linear-gradient(180deg,#1c1408,#120e04);border-bottom:2px solid var(--gold-dark);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:50}
+header h1{font-family:'Cinzel',serif;font-size:1.3rem;color:var(--gold);letter-spacing:.15em;text-shadow:0 0 24px rgba(201,168,76,.5)}
+.hdr-right{display:flex;align-items:center;gap:14px}
+.turn-pill{font-family:'Cinzel',serif;font-size:.78rem;color:var(--gold-light);background:rgba(201,168,76,.1);border:1px solid var(--gold-dark);padding:5px 14px;letter-spacing:.12em}
+.phase-ind{font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.1em;padding:5px 14px;border:1px solid}
+.ph-event{color:#6090c0;border-color:#304060;background:rgba(48,64,96,.3)}
+.ph-res{color:#80c080;border-color:#306030;background:rgba(48,96,48,.3)}
+.ph-act{color:var(--gold);border-color:var(--gold-dark);background:rgba(100,80,20,.2)}
+
+/* LAYOUT */
+.layout{display:grid;grid-template-columns:240px 1fr 280px;flex:1;min-height:0;overflow:hidden}
+
+/* SIDEBARS */
+.sidebar{background:linear-gradient(170deg,#f2e8d2,#e8d8b8);display:flex;flex-direction:column;overflow:hidden;position:relative}
+.sidebar::after{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");pointer-events:none}
+.sidebar-l{border-right:2px solid var(--gold-dark)}
+.sidebar-r{border-left:2px solid var(--gold-dark)}
+.s-title{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.22em;color:var(--gold-dark);text-transform:uppercase;padding:9px 14px;background:rgba(0,0,0,.05);border-bottom:1px solid var(--parchment-dark);flex-shrink:0}
+.s-scroll{overflow-y:auto;flex:1;padding:12px}
+.s-scroll::-webkit-scrollbar{width:5px}
+.s-scroll::-webkit-scrollbar-thumb{background:var(--parchment-dark)}
+
+/* STATS */
+.stats-panel{flex-shrink:0;padding:12px 14px;border-bottom:2px solid var(--parchment-dark)}
+.stat-blk{margin-bottom:11px}
+.stat-blk:last-child{margin-bottom:0}
+.stat-blk-t{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.18em;color:var(--stone-light);text-transform:uppercase;border-bottom:1px solid var(--parchment-dark);padding-bottom:3px;margin-bottom:6px}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:1px 0}
+.slbl{font-size:.8rem;color:var(--ink-mid);font-style:italic}
+.sval{font-family:'Cinzel',serif;font-size:.9rem;font-weight:700;color:var(--ink)}
+.big-stat{font-family:'Cinzel',serif;font-weight:700;line-height:1.1}
+.big-stat.gold{font-size:1.35rem;color:#7a4e00}
+.big-stat.pop{font-size:1.35rem;color:var(--ink)}
+.stat-sub{font-size:.7rem;color:var(--stone-light);font-style:italic;margin-top:1px}
+.sec-track{height:10px;background:rgba(0,0,0,.12);border-radius:3px;margin-top:5px;overflow:hidden;border:1px solid rgba(0,0,0,.1)}
+.sec-fill{height:100%;border-radius:3px;transition:width .4s;background:linear-gradient(90deg,#2a6a2a,#50aa50)}
+.sec-fill.low{background:linear-gradient(90deg,var(--red),#cc4040)}
+.pros-chip{display:inline-block;font-family:'Cinzel',serif;font-size:.72rem;padding:3px 10px;border-radius:2px;font-weight:700}
+.p0{background:#4a2828;color:#f0a0a0}.p1{background:#4a3a20;color:#f0c080}.p2{background:#283828;color:#90d070}.p3{background:#1a3828;color:#60e0a8}.p4{background:#182038;color:#70b8f0}
+.sec-btns{display:flex;gap:6px;margin-top:7px}
+.mini-btn{font-family:'Cinzel',serif;font-size:.63rem;letter-spacing:.06em;padding:5px 6px;background:linear-gradient(180deg,#2a1e08,#1a1205);color:var(--gold);border:1px solid var(--gold-dark);cursor:pointer;transition:all .15s;flex:1;text-align:center}
+.mini-btn:hover{box-shadow:0 0 8px rgba(201,168,76,.3);background:linear-gradient(180deg,#3a2e10,#2a1e08)}
+.mini-btn:disabled{opacity:.35;cursor:not-allowed}
+
+/* TRANSFER PANEL */
+.transfer-panel{flex-shrink:0;padding:10px 14px;border-bottom:1px solid var(--parchment-dark)}
+.transfer-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.transfer-input{font-family:'Cinzel',serif;font-size:.85rem;font-weight:700;width:90px;padding:4px 8px;background:rgba(255,255,255,.6);border:1px solid var(--parchment-dark);color:var(--ink);text-align:right}
+.transfer-input:focus{outline:1px solid var(--gold-dark);background:rgba(255,255,255,.9)}
+.transfer-btns{display:flex;flex-direction:column;gap:5px}
+.transfer-btn{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.06em;padding:6px 10px;border:1px solid;cursor:pointer;transition:all .15s;text-align:center;width:100%}
+.transfer-btn.inject{background:linear-gradient(180deg,#1a2e12,#0e1e08);color:#80d060;border-color:#3a6020}
+.transfer-btn.inject:hover{background:linear-gradient(180deg,#2a4a1a,#1a3010);box-shadow:0 0 8px rgba(80,160,40,.3)}
+.transfer-btn.withdraw{background:linear-gradient(180deg,#2e1a08,#1e0e04);color:#d09040;border-color:#7a4a10}
+.transfer-btn.withdraw:hover{background:linear-gradient(180deg,#4a2a10,#2a1608);box-shadow:0 0 8px rgba(160,100,30,.3)}
+
+/* TURN FLOW */
+.turn-flow{padding:10px 12px;border-bottom:1px solid var(--parchment-dark);flex-shrink:0}
+.flow-step{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.06);opacity:.35;transition:opacity .2s}
+.flow-step.active{opacity:1}.flow-step.done{opacity:.6}
+.flow-num{font-family:'Cinzel',serif;font-size:.65rem;width:18px;height:18px;border-radius:50%;border:1px solid var(--gold-dark);display:flex;align-items:center;justify-content:center;color:var(--gold-dark);flex-shrink:0;margin-top:1px}
+.flow-step.active .flow-num{background:var(--gold-dark);color:var(--parchment)}
+.flow-step.done .flow-num{background:var(--green);border-color:var(--green);color:white}
+.flow-text{font-size:.8rem;color:var(--ink-mid);line-height:1.3}
+.flow-btn{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.1em;padding:5px 12px;width:100%;margin-top:4px;background:linear-gradient(180deg,#2a1e08,#1a1205);color:var(--gold);border:1px solid var(--gold-dark);cursor:pointer;transition:all .2s}
+.flow-btn:hover:not(:disabled){box-shadow:0 0 12px rgba(201,168,76,.3)}
+.flow-btn:disabled{opacity:.35;cursor:not-allowed}
+
+/* PLAYER ACTIONS */
+.pa-wrap{padding:10px 12px;border-bottom:1px solid var(--parchment-dark);flex-shrink:0}
+.pa-t{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.18em;color:var(--gold-dark);text-transform:uppercase;margin-bottom:8px}
+.player-row{display:flex;align-items:center;margin-bottom:6px;gap:6px}
+.player-name{font-family:'Cinzel',serif;font-size:.72rem;color:var(--ink);min-width:60px}
+.act-sel{font-family:'IM Fell English',serif;font-size:.78rem;background:rgba(255,255,255,.5);border:1px solid var(--parchment-dark);color:var(--ink);padding:3px 6px;flex:1}
+.act-warn{font-size:.65rem;color:var(--red);font-style:italic;margin-top:2px}
+
+/* LOG */
+.log-entry{font-size:.78rem;padding:3px 8px;border-left:2px solid var(--parchment-dark);margin-bottom:4px;line-height:1.4;animation:sl .25s ease}
+@keyframes sl{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.le-good{border-color:var(--green);color:var(--green)}.le-bad{border-color:var(--red);color:var(--red)}
+.le-event{border-color:var(--blue);color:var(--blue)}.le-build{border-color:var(--gold-dark);color:var(--gold-dark)}
+.le-turn{border-color:var(--stone);color:var(--stone);font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.1em}
+
+/* CENTER */
+.center{display:flex;flex-direction:column;overflow:hidden}
+
+/* TOWN CANVAS */
+.town-canvas{flex:1;position:relative;overflow:hidden;background:linear-gradient(180deg,#2a4060 0%,#4a6888 32%,#4a7a3a 32%,#3a6a2a 52%,#7a5a32 52%,#6a4a22 100%)}
+.town-canvas::before{content:'';position:absolute;top:6%;left:8%;width:90px;height:18px;background:rgba(255,255,255,.15);border-radius:50%;box-shadow:140px 6px 0 rgba(255,255,255,.1),300px -3px 0 rgba(255,255,255,.12);pointer-events:none}
+.zone-lbl{position:absolute;font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.5);pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+.town-road{position:absolute;top:32%;height:20%;left:46%;width:8%;background:linear-gradient(180deg,#9a7a52,#8a6a42,#7a5a32);clip-path:polygon(25% 0%,75% 0%,100% 100%,0% 100%);pointer-events:none;opacity:.7}
+.town-zone{position:absolute;top:32%;height:58%;display:flex;flex-wrap:wrap;align-content:flex-end;padding:10px 8px;gap:8px}
+.zone-village{left:0;width:50%;justify-content:flex-start}
+.zone-chateau{left:50%;width:50%;justify-content:flex-end}
+
+/* BUILDING STICKER */
+.bld-sticker{display:flex;flex-direction:column;align-items:center;cursor:default;animation:pop .35s cubic-bezier(.175,.885,.32,1.275);position:relative}
+@keyframes pop{from{opacity:0;transform:scale(.3) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.bld-sticker svg{filter:drop-shadow(0 3px 6px rgba(0,0,0,.55));transition:filter .2s}
+.bld-sticker:hover svg{filter:drop-shadow(0 3px 12px rgba(201,168,76,.7))}
+.bld-sticker-lbl{font-family:'Cinzel',serif;font-size:.44rem;letter-spacing:.04em;color:rgba(255,255,255,.92);text-shadow:0 1px 3px rgba(0,0,0,.9);text-align:center;max-width:58px;line-height:1.2;margin-top:2px}
+.bld-tip{display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:rgba(18,12,4,.94);border:1px solid var(--gold-dark);color:var(--parchment);font-size:.72rem;padding:6px 10px;white-space:nowrap;z-index:100;margin-bottom:6px;pointer-events:none}
+.bld-sticker:hover .bld-tip{display:block}
+.bld-sticker.degraded svg{filter:drop-shadow(0 0 6px rgba(200,80,20,.9)) brightness(.7)}
+.bld-sticker.degraded .bld-sticker-lbl::after{content:' ⚠';color:#ff8040}
+
+/* SHOP — tooltip fix: use fixed positioning via JS */
+.shop-panel{background:rgba(0,0,0,.6);border-top:2px solid var(--gold-dark);flex-shrink:0;height:195px;display:flex;flex-direction:column}
+.shop-tabs{display:flex;border-bottom:1px solid var(--gold-dark);flex-shrink:0}
+.shop-tab{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.12em;padding:6px 14px;color:rgba(201,168,76,.5);cursor:pointer;border-right:1px solid rgba(201,168,76,.2);background:transparent;border-top:none;border-left:none;border-bottom:none;transition:all .15s}
+.shop-tab.active{color:var(--gold);background:rgba(201,168,76,.1)}
+.shop-tab:hover{color:var(--gold-light)}
+.shop-list{overflow-x:auto;overflow-y:hidden;display:flex;gap:8px;padding:10px 12px;flex:1;align-items:flex-start}
+.shop-list::-webkit-scrollbar{height:5px}
+.shop-list::-webkit-scrollbar-thumb{background:var(--gold-dark);border-radius:3px}
+.shop-card{flex-shrink:0;width:140px;border:1px solid rgba(201,168,76,.3);background:rgba(30,20,8,.8);padding:8px 10px;cursor:default;transition:all .2s;position:relative}
+.shop-card.can-build{border-color:var(--gold-dark);cursor:pointer}
+.shop-card.can-build:hover{background:rgba(60,40,10,.9);transform:translateY(-2px);box-shadow:0 4px 16px rgba(201,168,76,.2)}
+.shop-card.built{border-color:rgba(42,92,42,.5);background:rgba(10,30,10,.7)}
+.shop-card.locked{opacity:.42}
+.sc-name{font-family:'Cinzel',serif;font-size:.67rem;color:var(--parchment);margin-bottom:3px;line-height:1.3}
+.sc-cost{font-size:.72rem;color:var(--gold);margin-bottom:4px}
+.sc-eff{font-size:.67rem;color:rgba(240,230,200,.65);font-style:italic;line-height:1.3}
+.sc-badge{position:absolute;top:5px;right:6px;font-size:.65rem}
+
+/* FLOATING TOOLTIP — fixed position via JS */
+#shop-tip{position:fixed;display:none;background:rgba(14,10,4,.97);border:1px solid var(--gold-dark);color:var(--parchment);font-family:'IM Fell English',serif;font-size:.75rem;padding:10px 13px;z-index:9999;pointer-events:none;line-height:1.8;max-width:240px;box-shadow:0 6px 24px rgba(0,0,0,.9)}
+#shop-tip::after{content:'';position:absolute;top:100%;left:20px;border:6px solid transparent;border-top-color:var(--gold-dark)}
+
+/* EVENT CARD — compact sidebar version */
+.evt-area{background:rgba(0,0,0,.45);border-bottom:1px solid rgba(201,168,76,.2);padding:10px 12px;flex-shrink:0}
+.evt-compact{position:relative;min-height:90px}
+.evt-c-back{background:linear-gradient(135deg,#1a1008,#0e0806);border:2px solid var(--gold-dark);height:86px;display:flex;align-items:center;justify-content:center;border-radius:3px}
+.evt-c-back-pattern{font-family:'Cinzel',serif;font-size:1rem;color:rgba(201,168,76,.35);letter-spacing:.25em}
+.evt-c-front{background:linear-gradient(160deg,#1a1008,#100c04);border:2px solid var(--gold-dark);padding:9px 10px;border-radius:3px}
+.evt-expand-btn{font-family:'Cinzel',serif;font-size:.56rem;letter-spacing:.12em;padding:3px 8px;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.3);color:rgba(201,168,76,.7);cursor:pointer;margin-top:6px;width:100%;transition:all .15s}
+.evt-expand-btn:hover{background:rgba(201,168,76,.2);color:var(--gold)}
+
+/* FULLSCREEN CARD OVERLAY */
+.card-fs-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:500;align-items:center;justify-content:center;perspective:1200px}
+.card-fs-overlay.open{display:flex}
+.card-fs-scene{width:min(420px,90vw);height:min(580px,85vh)}
+.card-fs-obj{width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform .8s cubic-bezier(.4,0,.2,1)}
+.card-fs-obj.flipped{transform:rotateY(180deg)}
+.card-fs-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:8px;overflow:hidden}
+.card-fs-back{background:linear-gradient(135deg,#1c1208,#0e0806);border:3px solid var(--gold-dark);display:flex;align-items:center;justify-content:center;box-shadow:0 20px 80px rgba(0,0,0,.8),inset 0 0 60px rgba(201,168,76,.03)}
+.card-fs-back-inner{font-family:'Cinzel',serif;font-size:2rem;color:rgba(201,168,76,.3);letter-spacing:.35em;text-align:center;border:1px solid rgba(201,168,76,.15);padding:40px 50px}
+.card-fs-front{transform:rotateY(180deg);background:linear-gradient(160deg,#1e1508,#120e04);border:3px solid var(--gold-dark);padding:32px 28px;display:flex;flex-direction:column;box-shadow:0 20px 80px rgba(0,0,0,.8)}
+.card-fs-header{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid rgba(201,168,76,.2)}
+.card-fs-title{font-family:'Cinzel',serif;font-size:1.6rem;color:var(--parchment);line-height:1.25;margin-bottom:12px}
+.card-fs-flavor{font-size:.95rem;font-style:italic;color:rgba(240,230,200,.6);line-height:1.6;flex:1;margin-bottom:16px}
+.card-fs-divider{height:1px;background:rgba(201,168,76,.2);margin-bottom:16px}
+.card-fs-eff{font-size:1rem;color:rgba(240,230,200,.9);background:rgba(255,255,255,.04);border-left:3px solid var(--gold-dark);padding:10px 14px;line-height:1.6;margin-bottom:20px}
+.card-fs-close{font-family:'Cinzel',serif;font-size:.75rem;letter-spacing:.15em;padding:10px 20px;background:transparent;border:1px solid rgba(201,168,76,.4);color:rgba(201,168,76,.7);cursor:pointer;align-self:flex-end;transition:all .2s}
+.card-fs-close:hover{background:rgba(201,168,76,.1);color:var(--gold);border-color:var(--gold-dark)}
+
+/* Old card-scene kept for compatibility but unused */
+.card-scene{display:none}
+
+/* CHOICE MODAL for Réseau d'espions */
+.choice-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:300;align-items:center;justify-content:center}
+.choice-modal.open{display:flex}
+.choice-box{background:linear-gradient(160deg,#f2e8d2,#e8d8b8);border:2px solid var(--gold-dark);padding:24px;max-width:520px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.8)}
+.choice-box h2{font-family:'Cinzel',serif;font-size:1rem;color:var(--ink);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--parchment-dark)}
+.choice-cards{display:flex;gap:12px;margin-bottom:16px}
+.choice-card{flex:1;border:2px solid transparent;background:rgba(30,20,8,.85);padding:12px;cursor:pointer;transition:all .2s;border-radius:2px}
+.choice-card:hover{border-color:var(--gold-dark);transform:translateY(-3px)}
+.choice-card.selected{border-color:var(--gold)!important;box-shadow:0 0 16px rgba(201,168,76,.4)}
+.cc-type{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.15em;margin-bottom:4px}
+.cc-name{font-family:'Cinzel',serif;font-size:.88rem;color:var(--parchment);margin-bottom:5px}
+.cc-flavor{font-size:.7rem;font-style:italic;color:rgba(240,230,200,.6);line-height:1.35;margin-bottom:6px}
+.cc-eff{font-size:.72rem;color:rgba(240,230,200,.85);background:rgba(255,255,255,.06);padding:4px 7px;border-left:2px solid}
+
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.76);z-index:200;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal-box{background:linear-gradient(160deg,#f2e8d2,#e8d8b8);border:2px solid var(--gold-dark);padding:24px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.8)}
+.modal-box h2{font-family:'Cinzel',serif;font-size:1rem;color:var(--ink);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--parchment-dark)}
+.modal-box p{font-size:.9rem;line-height:1.6;color:var(--ink-mid);margin-bottom:12px}
+.m-btns{display:flex;gap:10px;justify-content:flex-end}
+.btn-ok{font-family:'Cinzel',serif;font-size:.75rem;letter-spacing:.1em;padding:8px 20px;background:linear-gradient(180deg,#2a1e08,#1a1205);color:var(--gold);border:1px solid var(--gold-dark);cursor:pointer}
+.btn-ok:hover{box-shadow:0 0 10px rgba(201,168,76,.3)}
+.btn-no{font-family:'Cinzel',serif;font-size:.75rem;letter-spacing:.1em;padding:8px 20px;background:transparent;color:var(--stone);border:1px solid var(--stone-light);cursor:pointer}
+
+/* DECK BUTTON */
+.fb-status{font-family:'Cinzel',serif;font-size:.62rem;padding:3px 10px;border:1px solid;letter-spacing:.08em;transition:all .4s}
+.fb-connected{color:#60c060;border-color:#306030;background:rgba(30,80,30,.3)}
+.fb-disconnected{color:#c06060;border-color:#602020;background:rgba(80,20,20,.3)}
+.fb-syncing{color:#c0a030;border-color:#806010;background:rgba(80,60,10,.3)}
+.mj-badge{font-family:'Cinzel',serif;font-size:.62rem;padding:3px 10px;border:1px solid #8a6a1e;background:rgba(100,80,20,.3);color:#e8c97a;letter-spacing:.1em}
+.viewer-overlay{display:none}
+body.is-viewer .viewer-only{display:none!important}
+.undo-btn{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.1em;padding:5px 13px;background:linear-gradient(180deg,#1e1a2e,#12101e);color:#a090d0;border:1px solid #5040a0;cursor:pointer;transition:all .15s}
+.undo-btn:hover{box-shadow:0 0 10px rgba(120,100,200,.35);background:linear-gradient(180deg,#2e2a3e,#1e1a2e)}
+.undo-btn:disabled{opacity:.3;cursor:not-allowed}
+.reset-btn{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.1em;padding:5px 13px;background:linear-gradient(180deg,#2e1010,#1e0808);color:#d06060;border:1px solid #8b2020;cursor:pointer;transition:all .15s}
+.reset-btn:hover{box-shadow:0 0 10px rgba(180,60,60,.35);background:linear-gradient(180deg,#3e1818,#2e1010)}
+/* MJ-only buttons hidden for viewers */
+body.is-viewer .mj-only{display:none!important}
+.deck-btn{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.1em;padding:5px 13px;background:linear-gradient(180deg,#2a1e08,#1a1205);color:var(--gold);border:1px solid var(--gold-dark);cursor:pointer;transition:all .15s}
+.deck-btn:hover{box-shadow:0 0 10px rgba(201,168,76,.3);background:linear-gradient(180deg,#3a2e10,#2a1e08)}
+
+/* DECK MODAL */
+.deck-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:400;align-items:center;justify-content:center}
+.deck-modal.open{display:flex}
+.deck-box{background:linear-gradient(160deg,#f2e8d2,#e8d8b8);border:2px solid var(--gold-dark);padding:24px;max-width:600px;width:94%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.8)}
+.deck-box h2{font-family:'Cinzel',serif;font-size:1rem;color:var(--ink);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--parchment-dark)}
+.deck-count{font-size:.82rem;color:var(--stone);font-style:italic;margin-bottom:12px}
+.deck-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:8px;margin-bottom:16px}
+.deck-card{border:1px solid;border-radius:2px;padding:8px 10px;background:rgba(0,0,0,.6)}
+.deck-card-type{font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.12em;margin-bottom:3px}
+.deck-card-name{font-family:'Cinzel',serif;font-size:.78rem;color:var(--parchment);margin-bottom:4px}
+.deck-card-eff{font-size:.67rem;font-style:italic;color:rgba(240,230,200,.6);line-height:1.3}
+
+/* ══ VIEWER MODE (spectateurs) ══ */
+body.is-viewer .flow-btn,
+body.is-viewer .mini-btn,
+body.is-viewer .transfer-btn,
+body.is-viewer .transfer-input,
+body.is-viewer #pros-boost-btn,
+body.is-viewer .shop-card.can-build,
+body.is-viewer .act-sel {
+  pointer-events:none!important;
+  opacity:0.42!important;
+  cursor:default!important;
+}
+body.is-viewer .shop-card.can-build {
+  border-color:rgba(201,168,76,.15)!important;
+  transform:none!important;
+}
+body.is-viewer #m-ok,
+body.is-viewer #choice-ok {
+  pointer-events:none!important;
+  opacity:0.42!important;
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚔ Château d'Aiglion</h1>
+  <div class="hdr-right">
+    <div id="fb-status" class="fb-status fb-disconnected">⬤ Connexion…</div>
+    <div id="mj-badge" class="mj-badge" style="display:none">⚔ MJ</div>
+    <button class="undo-btn mj-only" id="btn-undo" onclick="undoState()" title="Annuler la dernière action" disabled>↩ Undo</button>
+    <button class="reset-btn mj-only" onclick="openResetModal()" title="Réinitialiser le domaine">⟳ Reset</button>
+    <button class="deck-btn" onclick="openDeckModal()">🂠 Voir le Deck</button>
+    <div class="phase-ind ph-event" id="phase-ind">Phase : Événement</div>
+    <div class="turn-pill" id="turn-pill">Tour I</div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- LEFT -->
+  <div class="sidebar sidebar-l">
+    <div class="s-title">Ressources du Domaine</div>
+    <div class="stats-panel">
+      <div class="stat-blk">
+        <div class="stat-blk-t">Finances</div>
+        <div class="stat-row">
+          <div><div class="big-stat gold" id="sv-gold">300 PO</div><div class="stat-sub" id="sv-inc">+60 PO / tour</div></div>
+          <span style="font-size:1.6rem;opacity:.35">🪙</span>
+        </div>
+      </div>
+      <div class="stat-blk">
+        <div class="stat-blk-t">Population</div>
+        <div class="stat-row">
+          <div><div class="big-stat pop" id="sv-pop">55 hab.</div><div class="stat-sub" id="sv-grwth">+0 hab. / tour</div></div>
+          <span style="font-size:1.6rem;opacity:.35">👥</span>
+        </div>
+      </div>
+      <div class="stat-blk">
+        <div class="stat-blk-t">Sécurité</div>
+        <div class="stat-row"><span class="slbl">Niveau</span><span class="sval" id="sv-sec" style="font-size:1rem">2 / 2</span></div>
+        <div class="sec-track"><div class="sec-fill" id="sec-fill" style="width:100%"></div></div>
+        <div class="stat-sub" style="margin-top:5px">Augmentée via les actions des joueurs</div>
+      </div>
+      <div class="stat-blk">
+        <div class="stat-blk-t">Prospérité</div>
+        <div class="stat-row"><span class="pros-chip p0" id="pros-chip">Misérable</span><span class="sval" id="sv-rpp" style="font-size:.78rem;color:#7a4e00">0.5 PO/hab.</span></div>
+        <button class="mini-btn" id="pros-boost-btn" onclick="boostPros()" style="width:100%;margin-top:7px;display:none">⬆ Investir 250 PO → Pros +1</button>
+      </div>
+    </div>
+    <div class="turn-flow">
+      <div class="s-title" style="padding:0 0 6px">Déroulé du tour</div>
+      <div class="flow-step active" id="fs0">
+        <div class="flow-num">1</div>
+        <div style="flex:1"><div class="flow-text">Tirer la carte événement</div>
+        <button class="flow-btn" id="btn-draw" onclick="drawEvent()">⟁ Tirer l'événement</button></div>
+      </div>
+      <div class="flow-step" id="fs1">
+        <div class="flow-num">2</div>
+        <div style="flex:1"><div class="flow-text">Percevoir les ressources</div>
+        <button class="flow-btn" id="btn-res" onclick="applyResources()" disabled>+ Percevoir les revenus</button></div>
+      </div>
+      <div class="flow-step" id="fs2">
+        <div class="flow-num">3</div>
+        <div class="flow-text">Actions des joueurs</div>
+      </div>
+      <div class="flow-step" id="fs3">
+        <div class="flow-num">4</div>
+        <div style="flex:1"><div class="flow-text">Fin du tour</div>
+        <button class="flow-btn" id="btn-next" onclick="nextTurn()" disabled>✦ Tour suivant</button></div>
+      </div>
+    </div>
+    <div class="s-title">Transfert d'Or</div>
+    <div class="transfer-panel">
+      <div class="transfer-row">
+        <span class="slbl" style="font-size:.75rem">Montant (PO)</span>
+        <input type="number" id="transfer-amt" value="50" min="1" class="transfer-input" />
+      </div>
+      <div class="transfer-btns">
+        <button class="transfer-btn inject" onclick="transferGold(1)">⬆ Joueurs → Domaine</button>
+        <button class="transfer-btn withdraw" onclick="transferGold(-1)">⬇ Domaine → Joueurs</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="center">
+    <div class="town-canvas">
+      <span class="zone-lbl" style="left:18%;top:33%">Village</span>
+      <span class="zone-lbl" style="left:65%;top:33%">Château</span>
+      <div class="town-road"></div>
+      <div class="town-zone zone-village" id="zone-v"></div>
+      <div class="town-zone zone-chateau" id="zone-c"></div>
+    </div>
+    <div class="shop-panel">
+      <div class="shop-tabs">
+        <button class="shop-tab active" onclick="setTab('civil',this)">Civil</button>
+        <button class="shop-tab" onclick="setTab('military',this)">Militaire</button>
+        <button class="shop-tab" onclick="setTab('economic',this)">Économique</button>
+      </div>
+      <div class="shop-list" id="shop-list"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="sidebar sidebar-r">
+    <div class="s-title">Événement du Tour</div>
+    <div class="evt-area">
+      <div class="evt-compact" id="evt-compact">
+        <div class="evt-c-back" id="evt-c-back">
+          <div class="evt-c-back-pattern">✦ AIGLION ✦</div>
+        </div>
+        <div class="evt-c-front" id="evt-c-front" style="display:none">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+            <div class="card-type-badge" id="c-badge" style="color:#7a6a52;border-color:#7a6a52">En attente</div>
+            <div class="card-title" id="c-title" style="font-size:.85rem;flex:1">— Tirez une carte —</div>
+          </div>
+          <div class="card-flavor" id="c-flavor" style="font-size:.68rem;margin-bottom:5px">Le destin du domaine se révèle au fil des tours.</div>
+          <div class="card-effect-box" id="c-eff" style="border-left-color:#7a6a52;font-size:.7rem">Aucun effet pour l'instant.</div>
+          <button class="evt-expand-btn" onclick="openCardFullscreen()">↗ Agrandir</button>
+        </div>
+      </div>
+    </div>
+    <div class="pa-wrap" style="overflow-y:auto;flex:1">
+      <div class="pa-t">Actions des Joueurs ce Tour</div>
+      <div id="players-ui"></div>
+    </div>
+    <div class="s-title">Journal</div>
+    <div class="s-scroll" id="log-right"></div>
+  </div>
+</div>
+
+<!-- Floating shop tooltip -->
+<div id="shop-tip"></div>
+
+<!-- Choice modal (Réseau d'espions) -->
+<div class="choice-modal" id="choice-modal">
+  <div class="choice-box">
+    <h2>⚔ Réseau d'Espions — Choisissez l'événement</h2>
+    <div class="choice-cards" id="choice-cards"></div>
+    <div class="m-btns">
+      <button class="btn-no" onclick="closeChoice()">Annuler</button>
+      <button class="btn-ok" id="choice-ok" onclick="confirmChoice()" disabled>Appliquer cet événement</button>
+    </div>
+  </div>
+</div>
+
+<!-- Build modal -->
+<div class="modal-bg" id="modal">
+  <div class="modal-box">
+    <h2 id="m-title">Construire ?</h2>
+    <p id="m-body"></p>
+    <div class="m-btns">
+      <button class="btn-no" onclick="closeModal()">Annuler</button>
+      <button class="btn-ok" id="m-ok">Construire</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fullscreen card overlay -->
+<div class="card-fs-overlay" id="card-fs-overlay">
+  <div class="card-fs-scene">
+    <div class="card-fs-obj" id="card-fs-obj">
+      <div class="card-fs-face card-fs-back">
+        <div class="card-fs-back-inner">✦ AIGLION ✦</div>
+      </div>
+      <div class="card-fs-face card-fs-front" id="card-fs-front">
+        <div class="card-fs-header">
+          <div class="card-type-badge" id="cfs-badge" style="font-size:.7rem;padding:4px 12px">En attente</div>
+        </div>
+        <div class="card-fs-title" id="cfs-title">— Tirez une carte —</div>
+        <div class="card-fs-flavor" id="cfs-flavor">Le destin du domaine se révèle au fil des tours.</div>
+        <div class="card-fs-divider" id="cfs-divider"></div>
+        <div class="card-fs-eff" id="cfs-eff">Aucun effet pour l'instant.</div>
+        <button class="card-fs-close" onclick="closeCardFullscreen()">✕ Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Deck viewer modal -->
+<div class="deck-modal" id="deck-modal">
+  <div class="deck-box">
+    <h2>🂠 Composition du Deck d'Événements</h2>
+    <div class="deck-count" id="deck-count"></div>
+    <div class="deck-grid" id="deck-grid"></div>
+    <div class="m-btns">
+      <button class="btn-ok" onclick="closeDeckModal()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══ SVG ICONS (preserved from previous version) ══
+const IC = {
+  'forge-base': s=>`<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none"><rect x="8" y="22" width="32" height="20" fill="#8B6040" rx="1"/><polygon points="4,22 24,8 44,22" fill="#A0522D"/><rect x="18" y="30" width="12" height="12" fill="#5C3A1E"/><rect x="20" y="18" width="8" height="8" fill="#CC6020" rx="1"/><circle cx="24" cy="22" r="3" fill="#FF8C00" opacity=".9"/><rect x="10" y="28" width="8" height="6" fill="#6B4226" rx="1"/><rect x="30" y="28" width="8" height="6" fill="#6B4226" rx="1"/></svg>`,
+  'auberge-base': s=>`<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none"><rect x="6" y="22" width="36" height="20" fill="#C8A060" rx="1"/><polygon points="4,22 24,6 44,22" fill="#A0522D"/><rect x="20" y="30" width="8" height="12" fill="#7B3F00"/><rect x="8" y="26" width="10" height="8" fill="#8B9DC3" rx="1" opacity=".7"/><rect x="30" y="26" width="10" height="8" fill="#8B9DC3" rx="1" opacity=".7"/><rect x="10" y="8" width="4" height="10" fill="#D4A460"/><rect x="8" y="6" width="8" height="3" fill="#CC8800"/></svg>`,
+  'magasin-base': s=>`<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none"><rect x="6" y="20" width="36" height="22" fill="#D4A860" rx="1"/><rect x="4" y="16" width="40" height="6" fill="#8B5E2A"/><rect x="6" y="8" width="36" height="10" fill="#C8904A"/><rect x="18" y="30" width="12" height="12" fill="#6B3A10"/><rect x="8" y="22" width="12" height="10" fill="#9BC0C8" rx="1" opacity=".8"/><rect x="28" y="22" width="12" height="10" fill="#9BC0C8" rx="1" opacity=".8"/></svg>`,
+  'murs-base': s=>`<svg width="${s}" height="${s}" viewBox="0 0 52 52" fill="none"><rect x="4" y="22" width="44" height="24" fill="#909090" rx="1"/><rect x="4" y="16" width="44" height="8" fill="#787878"/><rect x="4" y="12" width="8" height="6" fill="#787878"/><rect x="22" y="12" width="8" height="6" fill="#787878"/><rect x="40" y="12" width="8" height="6" fill="#787878"/><rect x="20" y="34" width="12" height="12" fill="#5A5A5A"/><rect x="8" y="26" width="8" height="8" fill="#7090A0" opacity=".7" rx="1"/><rect x="36" y="26" width="8" height="8" fill="#7090A0" opacity=".7" rx="1"/><path d="M4 46 Q26 40 48 46" stroke="#606060" stroke-width="3" fill="none" opacity=".4"/></svg>`,
+  'caserne-base': s=>`<svg width="${s}" height="${s}" viewBox="0 0 44 44" fill="none"><rect x="6" y="18" width="32" height="22" fill="#8C7A6A" rx="1"/><polygon points="4,18 22,6 40,18" fill="#7A6A5A"/><rect x="16" y="26" width="12" height="14" fill="#5A4A3A"/><rect x="8" y="20" width="8" height="8" fill="#4A6A8A" rx="1" opacity=".8"/><rect x="28" y="20" width="8" height="8" fill="#4A6A8A" rx="1" opacity=".8"/></svg>`,
+  'cellules': s=>`<svg width="${s}" height="${s}" viewBox="0 0 36 36" fill="none"><rect x="4" y="10" width="28" height="22" fill="#6A6060" rx="1"/><rect x="4" y="10" width="28" height="5" fill="#545050"/><line x1="4" y1="15" x2="32" y2="15" stroke="#404040" stroke-width="1"/><line x1="18" y1="10" x2="18" y2="32" stroke="#404040" stroke-width="1"/><rect x="6" y="16" width="10" height="8" fill="none" stroke="#808080" stroke-width="1.5"/><line x1="8" y1="16" x2="8" y2="24" stroke="#808080" stroke-width="1"/><line x1="10" y1="16" x2="10" y2="24" stroke="#808080" stroke-width="1"/><line x1="12" y1="16" x2="12" y2="24" stroke="#808080" stroke-width="1"/><line x1="14" y1="16" x2="14" y2="24" stroke="#808080" stroke-width="1"/></svg>`,
+  'ecuries-base': s=>`<svg width="${s}" height="${s}" viewBox="0 0 44 44" fill="none"><rect x="4" y="18" width="36" height="22" fill="#C8A060" rx="1"/><path d="M4,18 L22,6 L40,18" fill="#A08040"/><rect x="6" y="26" width="14" height="14" fill="#8B6030"/><rect x="24" y="26" width="14" height="14" fill="#8B6030"/><line x1="6" y1="30" x2="20" y2="30" stroke="#C8A060" stroke-width="1"/><line x1="6" y1="34" x2="20" y2="34" stroke="#C8A060" stroke-width="1"/><line x1="24" y1="30" x2="38" y2="30" stroke="#C8A060" stroke-width="1"/><line x1="24" y1="34" x2="38" y2="34" stroke="#C8A060" stroke-width="1"/></svg>`,
+  'routes': s=>`<svg width="${s}" height="${s}" viewBox="0 0 40 40" fill="none"><path d="M5 35 L20 5 L35 35" stroke="#9A7A52" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M5 35 L20 5 L35 35" stroke="#C8A060" stroke-width="3" fill="none" stroke-dasharray="4 4" stroke-linecap="round"/><circle cx="20" cy="5" r="3" fill="#D4A460"/><circle cx="5" cy="35" r="3" fill="#D4A460"/><circle cx="35" cy="35" r="3" fill="#D4A460"/></svg>`,
+  'logements': s=>`<svg width="${s}" height="${s}" viewBox="0 0 42 42" fill="none"><rect x="2" y="22" width="18" height="18" fill="#C8A060" rx="1"/><polygon points="1,22 11,10 21,22" fill="#A08040"/><rect x="22" y="26" width="18" height="14" fill="#B89050" rx="1"/><polygon points="21,26 31,16 41,26" fill="#907030"/><rect x="7" y="28" width="6" height="8" fill="#7B5000"/><rect x="27" y="30" width="6" height="8" fill="#7B5000"/><rect x="3" y="24" width="5" height="5" fill="#8B9DC3" rx="1" opacity=".8"/><rect x="14" y="24" width="5" height="5" fill="#8B9DC3" rx="1" opacity=".8"/></svg>`,
+  'champs-culture': s=>`<svg width="${s}" height="${s}" viewBox="0 0 44 44" fill="none"><rect x="0" y="24" width="44" height="20" fill="#6A9A40"/><line x1="8" y1="40" x2="8" y2="16" stroke="#8A6030" stroke-width="1.5"/><line x1="22" y1="40" x2="22" y2="16" stroke="#8A6030" stroke-width="1.5"/><line x1="36" y1="40" x2="36" y2="16" stroke="#8A6030" stroke-width="1.5"/><ellipse cx="8" cy="16" rx="3" ry="6" fill="#D4A020" transform="rotate(-10,8,16)"/><ellipse cx="22" cy="16" rx="3" ry="6" fill="#D4A020" transform="rotate(5,22,16)"/><ellipse cx="36" cy="16" rx="3" ry="6" fill="#D4A020" transform="rotate(-8,36,16)"/></svg>`,
+  'sanctuaire': s=>`<svg width="${s}" height="${s}" viewBox="0 0 50 50" fill="none"><rect x="8" y="24" width="34" height="22" fill="#E8D8B0" rx="1"/><polygon points="5,24 25,6 45,24" fill="#D0B880"/><rect x="22" y="34" width="6" height="12" fill="#8B7040"/><rect x="10" y="28" width="8" height="8" fill="#90A8C0" rx="1" opacity=".8"/><rect x="32" y="28" width="8" height="8" fill="#90A8C0" rx="1" opacity=".8"/><line x1="25" y1="2" x2="25" y2="10" stroke="#D4A020" stroke-width="2"/><line x1="21" y1="6" x2="29" y2="6" stroke="#D4A020" stroke-width="2"/><circle cx="25" cy="6" r="2" fill="#FFD700"/></svg>`,
+  'marche-permanent': s=>`<svg width="${s}" height="${s}" viewBox="0 0 52 52" fill="none"><rect x="4" y="24" width="44" height="24" fill="#E8C870" rx="1"/><rect x="4" y="18" width="44" height="8" fill="#CC9900"/><rect x="4" y="14" width="12" height="6" fill="#CC7700"/><rect x="20" y="14" width="12" height="6" fill="#DD8800"/><rect x="36" y="14" width="12" height="6" fill="#CC7700"/><line x1="10" y1="14" x2="10" y2="8" stroke="#8B6030" stroke-width="1.5"/><line x1="26" y1="14" x2="26" y2="8" stroke="#8B6030" stroke-width="1.5"/><line x1="42" y1="14" x2="42" y2="8" stroke="#8B6030" stroke-width="1.5"/><rect x="8" y="28" width="10" height="8" fill="#8B5010" rx="1"/><rect x="22" y="28" width="10" height="8" fill="#8B4000" rx="1"/><rect x="36" y="28" width="10" height="8" fill="#8B5010" rx="1"/></svg>`,
+  'quartier-residentiel': s=>`<svg width="${s}" height="${s}" viewBox="0 0 50 50" fill="none"><rect x="2" y="30" width="20" height="18" fill="#D4A860" rx="1"/><polygon points="2,30 12,18 22,30" fill="#B08840"/><rect x="24" y="26" width="24" height="22" fill="#C89850" rx="1"/><polygon points="22,26 36,12 50,26" fill="#A07830"/><rect x="6" y="36" width="6" height="10" fill="#7B5000"/><rect x="28" y="34" width="8" height="14" fill="#7B5000"/><rect x="4" y="32" width="5" height="5" fill="#8B9DC3" rx="1" opacity=".8"/><rect x="14" y="32" width="5" height="5" fill="#8B9DC3" rx="1" opacity=".8"/><rect x="38" y="30" width="6" height="6" fill="#8B9DC3" rx="1" opacity=".8"/></svg>`,
+  'faubourgs': s=>`<svg width="${s}" height="${s}" viewBox="0 0 56 56" fill="none"><rect x="2" y="34" width="14" height="20" fill="#C8A060"/><polygon points="2,34 9,24 16,34" fill="#A08040"/><rect x="18" y="28" width="20" height="26" fill="#D4A860"/><polygon points="16,28 28,14 40,28" fill="#B08840"/><rect x="40" y="32" width="14" height="22" fill="#C8A060"/><polygon points="40,32 47,22 54,32" fill="#A07830"/><rect x="6" y="40" width="4" height="10" fill="#7B5000"/><rect x="24" y="38" width="8" height="16" fill="#7B5000"/><rect x="44" y="40" width="4" height="10" fill="#7B5000"/></svg>`,
+  'exploitation-agricole': s=>`<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none"><rect x="0" y="26" width="48" height="22" fill="#5A8A3A"/><rect x="30" y="12" width="14" height="16" fill="#C8A060" rx="1"/><polygon points="28,14 37,4 46,14" fill="#A08040"/><line x1="6" y1="42" x2="6" y2="18" stroke="#7A5020" stroke-width="1.5"/><line x1="16" y1="42" x2="16" y2="18" stroke="#7A5020" stroke-width="1.5"/><ellipse cx="6" cy="18" rx="4" ry="7" fill="#D4B020" transform="rotate(-5,6,18)"/><ellipse cx="16" cy="18" rx="4" ry="7" fill="#D4B020" transform="rotate(5,16,18)"/></svg>`,
+  'jardins': s=>`<svg width="${s}" height="${s}" viewBox="0 0 46 46" fill="none"><rect x="4" y="26" width="38" height="18" fill="#5A9040" rx="2"/><circle cx="12" cy="20" r="8" fill="#2A8020"/><circle cx="23" cy="16" r="10" fill="#38A030"/><circle cx="34" cy="20" r="7" fill="#2A8020"/><circle cx="23" cy="16" r="5" fill="#FF6090" opacity=".6"/><circle cx="14" cy="22" r="3" fill="#FF90B0" opacity=".7"/><circle cx="33" cy="22" r="3" fill="#FFA050" opacity=".7"/><line x1="23" y1="26" x2="23" y2="44" stroke="#6B4A20" stroke-width="2"/></svg>`,
+  'ecole': s=>`<svg width="${s}" height="${s}" viewBox="0 0 44 44" fill="none"><rect x="4" y="20" width="36" height="22" fill="#E0C880" rx="1"/><polygon points="2,20 22,6 42,20" fill="#C0A060"/><rect x="18" y="30" width="8" height="12" fill="#8B6030"/><rect x="6" y="24" width="8" height="8" fill="#8BB0D0" rx="1" opacity=".85"/><rect x="30" y="24" width="8" height="8" fill="#8BB0D0" rx="1" opacity=".85"/><line x1="22" y1="2" x2="22" y2="8" stroke="#D4A020" stroke-width="2"/><polygon points="18,8 22,2 26,8" fill="#D4A020"/></svg>`,
+  'bain-public': s=>`<svg width="${s}" height="${s}" viewBox="0 0 44 44" fill="none"><rect x="4" y="20" width="36" height="22" fill="#D8D0C8" rx="2"/><rect x="2" y="16" width="40" height="6" fill="#C0B8B0"/><rect x="6" y="28" width="32" height="12" rx="4" fill="#60A0C8" opacity=".8"/><path d="M6 32 Q22 28 38 32" stroke="#90D0F0" stroke-width="1.5" fill="none" opacity=".8"/><line x1="6" y1="16" x2="6" y2="8" stroke="#B0A890" stroke-width="2"/><line x1="38" y1="16" x2="38" y2="8" stroke="#B0A890" stroke-width="2"/><rect x="2" y="6" width="8" height="4" fill="#C8B880" rx="1"/><rect x="34" y="6" width="8" height="4" fill="#C8B880" rx="1"/></svg>`,
+  'caserne-remise-neuf': s=>`<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none"><rect x="4" y="20" width="40" height="26" fill="#7A6A5A" rx="1"/><polygon points="2,20 24,4 46,20" fill="#6A5A4A"/><rect x="18" y="30" width="12" height="18" fill="#4A3A2A"/><rect x="6" y="24" width="10" height="10" fill="#4A6A8A" rx="1" opacity=".85"/><rect x="32" y="24" width="10" height="10" fill="#4A6A8A" rx="1" opacity=".85"/><line x1="24" y1="0" x2="24" y2="6" stroke="#CC3030" stroke-width="2"/><rect x="22" y="0" width="4" height="2" fill="#CC3030"/></svg>`,
+  'tour-de-guet': s=>`<svg width="${s}" height="${s}" viewBox="0 0 42 42" fill="none"><rect x="14" y="14" width="14" height="28" fill="#808080" rx="1"/><rect x="10" y="8" width="22" height="8" fill="#6A6A6A"/><rect x="10" y="4" width="5" height="6" fill="#6A6A6A"/><rect x="20" y="4" width="5" height="6" fill="#6A6A6A"/><rect x="27" y="4" width="5" height="6" fill="#6A6A6A"/><rect x="17" y="24" width="8" height="10" fill="#5A5A5A"/><circle cx="21" cy="10" r="2" fill="#FFD700" opacity=".9"/></svg>`,
+  'bureau-bailli': s=>`<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none"><rect x="6" y="22" width="36" height="24" fill="#D8C8A0" rx="1"/><polygon points="4,22 24,8 44,22" fill="#B8A880"/><rect x="18" y="30" width="12" height="16" fill="#8B7040"/><rect x="8" y="24" width="10" height="10" fill="#8BA8C0" rx="1" opacity=".8"/><rect x="30" y="24" width="10" height="10" fill="#8BA8C0" rx="1" opacity=".8"/><line x1="24" y1="4" x2="24" y2="10" stroke="#8B6030" stroke-width="1.5"/><rect x="20" y="2" width="8" height="4" fill="#CC9900" rx="1"/></svg>`,
+  'armurerie': s=>`<svg width="${s}" height="${s}" viewBox="0 0 46 46" fill="none"><rect x="4" y="18" width="38" height="26" fill="#6A6A70" rx="1"/><polygon points="2,18 23,4 44,18" fill="#5A5A60"/><rect x="8" y="28" width="12" height="14" fill="#505058"/><rect x="26" y="28" width="12" height="14" fill="#505058"/><line x1="14" y1="10" x2="14" y2="20" stroke="#C0C0C0" stroke-width="2"/><line x1="23" y1="8" x2="23" y2="18" stroke="#A0A0A0" stroke-width="2.5"/><line x1="32" y1="10" x2="32" y2="20" stroke="#C0C0C0" stroke-width="2"/><circle cx="14" cy="10" r="2" fill="#D0D0D0"/><circle cx="32" cy="10" r="2" fill="#D0D0D0"/></svg>`,
+  'salle-entrainement': s=>`<svg width="${s}" height="${s}" viewBox="0 0 46 46" fill="none"><rect x="4" y="18" width="38" height="26" fill="#8A7A6A"/><polygon points="2,18 23,4 44,18" fill="#7A6A5A"/><rect x="18" y="28" width="10" height="16" fill="#5A4A3A"/><rect x="6" y="22" width="10" height="10" fill="#4A7090" rx="1" opacity=".8"/><rect x="30" y="22" width="10" height="10" fill="#4A7090" rx="1" opacity=".8"/><line x1="8" y1="10" x2="38" y2="10" stroke="#C0A060" stroke-width="2.5"/><circle cx="8" cy="10" r="3" fill="#909090"/><circle cx="38" cy="10" r="3" fill="#909090"/></svg>`,
+  'vastes-ecuries': s=>`<svg width="${s}" height="${s}" viewBox="0 0 50 50" fill="none"><rect x="2" y="20" width="46" height="28" fill="#C8A060" rx="1"/><polygon points="2,20 25,4 48,20" fill="#A08040"/><rect x="4" y="28" width="20" height="20" fill="#8B6030"/><rect x="26" y="28" width="20" height="20" fill="#8B6030"/><line x1="4" y1="34" x2="24" y2="34" stroke="#C8A060" stroke-width="1"/><line x1="4" y1="40" x2="24" y2="40" stroke="#C8A060" stroke-width="1"/><line x1="26" y1="34" x2="46" y2="34" stroke="#C8A060" stroke-width="1"/><line x1="26" y1="40" x2="46" y2="40" stroke="#C8A060" stroke-width="1"/></svg>`,
+  'chateau-bourg': s=>`<svg width="${s}" height="${s}" viewBox="0 0 56 56" fill="none"><rect x="2" y="24" width="52" height="30" fill="#7A7A7A"/><rect x="2" y="16" width="52" height="10" fill="#6A6A6A"/><rect x="2" y="10" width="10" height="8" fill="#6A6A6A"/><rect x="24" y="10" width="8" height="8" fill="#6A6A6A"/><rect x="44" y="10" width="10" height="8" fill="#6A6A6A"/><rect x="18" y="8" width="20" height="26" fill="#808080"/><rect x="14" y="2" width="6" height="8" fill="#707070"/><rect x="22" y="0" width="12" height="8" fill="#707070"/><rect x="36" y="2" width="6" height="8" fill="#707070"/><rect x="22" y="28" width="12" height="16" fill="#5A5A5A"/><rect x="6" y="28" width="10" height="10" fill="#7090A0" rx="1" opacity=".8"/><rect x="40" y="28" width="10" height="10" fill="#7090A0" rx="1" opacity=".8"/><line x1="28" y1="0" x2="28" y2="4" stroke="#CC3030" stroke-width="1.5"/><rect x="25" y="0" width="6" height="2" fill="#CC3030"/></svg>`,
+  'cercle-teleportation': s=>`<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none"><ellipse cx="24" cy="36" rx="18" ry="6" fill="#2A1A5A" stroke="#7060C0" stroke-width="1.5"/><ellipse cx="24" cy="36" rx="12" ry="4" fill="none" stroke="#A090E0" stroke-width="1" stroke-dasharray="3 3"/><ellipse cx="24" cy="36" rx="6" ry="2" fill="#6050A0" opacity=".8"/><circle cx="24" cy="16" r="8" fill="none" stroke="#A090F0" stroke-width="2"/><circle cx="24" cy="16" r="4" fill="#8070E0" opacity=".9"/><circle cx="24" cy="16" r="2" fill="#E0D0FF"/></svg>`,
+  'forge-amelioree': s=>`<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none"><rect x="6" y="20" width="36" height="26" fill="#7A6050" rx="1"/><polygon points="4,20 24,6 44,20" fill="#6A5040"/><rect x="18" y="30" width="12" height="16" fill="#4A3020"/><rect x="20" y="16" width="8" height="8" fill="#FF6000" opacity=".9" rx="1"/><circle cx="24" cy="20" r="4" fill="#FF9000" opacity=".8"/><circle cx="24" cy="20" r="2" fill="#FFC000"/><rect x="8" y="26" width="8" height="8" fill="#5A4030" rx="1"/><rect x="32" y="26" width="8" height="8" fill="#5A4030" rx="1"/></svg>`,
+  'auberge-accueillante': s=>`<svg width="${s}" height="${s}" viewBox="0 0 50 50" fill="none"><rect x="4" y="22" width="42" height="26" fill="#D4A860" rx="1"/><polygon points="2,22 25,4 48,22" fill="#B08840"/><rect x="20" y="34" width="10" height="14" fill="#8B6020"/><rect x="6" y="26" width="12" height="10" fill="#9BB8D0" rx="1" opacity=".8"/><rect x="32" y="26" width="12" height="10" fill="#9BB8D0" rx="1" opacity=".8"/><rect x="10" y="6" width="6" height="14" fill="#E0B870"/><rect x="7" y="4" width="12" height="4" fill="#CC9900" rx="1"/><circle cx="22" cy="10" r="2" fill="#FFD700"/></svg>`,
+  'auberge-chateau-reputee': s=>`<svg width="${s}" height="${s}" viewBox="0 0 56 56" fill="none"><rect x="2" y="26" width="52" height="28" fill="#E0B870" rx="1"/><polygon points="2,26 28,6 54,26" fill="#C09840"/><rect x="22" y="38" width="12" height="16" fill="#9B7020"/><rect x="4" y="30" width="16" height="12" fill="#A8C8E0" rx="1" opacity=".8"/><rect x="36" y="30" width="16" height="12" fill="#A8C8E0" rx="1" opacity=".8"/><rect x="12" y="6" width="8" height="18" fill="#E8C078"/><rect x="8" y="4" width="16" height="5" fill="#DD9900" rx="1"/><circle cx="16" cy="2" r="3" fill="#FFD700"/></svg>`,
+  'comptoir': s=>`<svg width="${s}" height="${s}" viewBox="0 0 44 44" fill="none"><rect x="4" y="20" width="36" height="22" fill="#D0A858" rx="1"/><rect x="2" y="16" width="40" height="6" fill="#A88030"/><rect x="4" y="6" width="36" height="12" fill="#C09040"/><rect x="8" y="10" width="6" height="8" fill="#8B6020" rx="1"/><rect x="18" y="10" width="8" height="8" fill="#A07030" rx="1"/><rect x="30" y="10" width="6" height="8" fill="#8B6020" rx="1"/><rect x="8" y="26" width="10" height="14" fill="#7B4010" rx="1"/><rect x="26" y="26" width="10" height="14" fill="#7B4010" rx="1"/></svg>`,
+  'echoppes-specialisee': s=>`<svg width="${s}" height="${s}" viewBox="0 0 50 50" fill="none"><rect x="2" y="22" width="46" height="26" fill="#D8B060" rx="1"/><rect x="0" y="16" width="50" height="8" fill="#B08030"/><rect x="0" y="10" width="50" height="8" fill="#C09040"/><rect x="4" y="12" width="8" height="6" fill="#9A7020" rx="1"/><rect x="18" y="12" width="14" height="6" fill="#B08030" rx="1"/><rect x="38" y="12" width="8" height="6" fill="#9A7020" rx="1"/><rect x="4" y="28" width="12" height="18" fill="#8B6010" rx="1"/><rect x="20" y="28" width="10" height="18" fill="#8B6010" rx="1"/><rect x="34" y="28" width="12" height="18" fill="#8B6010" rx="1"/><circle cx="25" cy="8" r="3" fill="#FFD700"/></svg>`,
+  'peage-normal': s=>`<svg width="${s}" height="${s}" viewBox="0 0 40 40" fill="none"><rect x="16" y="10" width="8" height="26" fill="#8A8A8A" rx="1"/><rect x="14" y="8" width="12" height="4" fill="#6A6A6A"/><path d="M4 36 L36 36" stroke="#9A7A52" stroke-width="5" stroke-linecap="round"/><line x1="20" y1="22" x2="36" y2="22" stroke="#CC3030" stroke-width="3" stroke-linecap="round"/><circle cx="36" cy="22" r="3" fill="#CC3030"/><circle cx="20" cy="6" r="2" fill="#FFD700"/></svg>`,
+  'peage-riche': s=>`<svg width="${s}" height="${s}" viewBox="0 0 40 40" fill="none"><rect x="16" y="10" width="8" height="26" fill="#8A8A8A" rx="1"/><rect x="14" y="8" width="12" height="4" fill="#6A6A6A"/><path d="M4 36 L36 36" stroke="#9A7A52" stroke-width="5" stroke-linecap="round"/><line x1="20" y1="22" x2="36" y2="22" stroke="#FFD700" stroke-width="3" stroke-linecap="round"/><circle cx="36" cy="22" r="3" fill="#FFD700"/><circle cx="20" cy="6" r="3" fill="#FFD700"/></svg>`,
+  'atelier-alchimie': s=>`<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none"><rect x="6" y="22" width="36" height="24" fill="#7A6A90" rx="1"/><polygon points="4,22 24,6 44,22" fill="#6A5A80"/><rect x="18" y="32" width="12" height="14" fill="#5A4A70"/><circle cx="14" cy="28" r="5" fill="#40C040" opacity=".8"/><circle cx="34" cy="28" r="4" fill="#A040C0" opacity=".8"/><circle cx="24" cy="26" r="3" fill="#4080C0" opacity=".9"/><rect x="20" y="10" width="8" height="10" fill="#5A5080" rx="2"/><circle cx="24" cy="9" r="2" fill="#9060A0"/></svg>`,
+  'atelier-enchanteur': s=>`<svg width="${s}" height="${s}" viewBox="0 0 50 50" fill="none"><rect x="4" y="24" width="42" height="24" fill="#4A3A70" rx="1"/><polygon points="2,24 25,6 48,24" fill="#3A2A60"/><rect x="20" y="34" width="10" height="14" fill="#302050"/><circle cx="25" cy="16" r="6" fill="none" stroke="#A080F0" stroke-width="2"/><circle cx="25" cy="16" r="3" fill="#8060D0" opacity=".9"/><circle cx="25" cy="16" r="1.5" fill="#E0D0FF"/><circle cx="10" cy="30" r="3" fill="#C080FF" opacity=".8"/><circle cx="40" cy="30" r="3" fill="#C080FF" opacity=".8"/><circle cx="25" cy="2" r="2" fill="#FFD700" opacity=".9"/></svg>`,
+  'bibliotheque': s=>`<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none"><rect x="4" y="20" width="40" height="26" fill="#C8A868" rx="1"/><polygon points="2,20 24,4 46,20" fill="#A88848"/><rect x="18" y="30" width="12" height="16" fill="#8B6828"/><rect x="6" y="24" width="10" height="12" fill="#8090A0" rx="1" opacity=".85"/><rect x="32" y="24" width="10" height="12" fill="#8090A0" rx="1" opacity=".85"/><rect x="8" y="26" width="2" height="8" fill="#C08040"/><rect x="11" y="26" width="2" height="8" fill="#A06030"/><rect x="14" y="26" width="2" height="8" fill="#C08040"/><rect x="34" y="26" width="2" height="8" fill="#C08040"/><rect x="37" y="26" width="2" height="8" fill="#A06030"/><rect x="40" y="26" width="2" height="8" fill="#C08040"/></svg>`,
+  'salle-de-jeux': s=>`<svg width="${s}" height="${s}" viewBox="0 0 46 46" fill="none"><rect x="4" y="20" width="38" height="24" fill="#C8A050" rx="1"/><polygon points="2,20 23,6 44,20" fill="#A88040"/><rect x="16" y="30" width="14" height="14" fill="#8B6020"/><rect x="6" y="24" width="8" height="8" fill="#80A090" rx="2" opacity=".85"/><rect x="32" y="24" width="8" height="8" fill="#80A090" rx="2" opacity=".85"/><circle cx="10" cy="28" r="2" fill="#E04040"/></svg>`,
+  'scriptorium': s=>`<svg width="${s}" height="${s}" viewBox="0 0 46 46" fill="none"><rect x="4" y="20" width="38" height="24" fill="#D8C898" rx="1"/><polygon points="2,20 23,6 44,20" fill="#B8A878"/><rect x="18" y="30" width="10" height="14" fill="#9B8048"/><rect x="6" y="22" width="12" height="14" fill="#C0A868" rx="1"/><rect x="28" y="22" width="12" height="14" fill="#C0A868" rx="1"/><line x1="7" y1="26" x2="17" y2="26" stroke="#8B6028" stroke-width="1"/><line x1="7" y1="29" x2="17" y2="29" stroke="#8B6028" stroke-width="1"/><line x1="7" y1="32" x2="17" y2="32" stroke="#8B6028" stroke-width="1"/><line x1="29" y1="26" x2="39" y2="26" stroke="#8B6028" stroke-width="1"/><line x1="29" y1="29" x2="39" y2="29" stroke="#8B6028" stroke-width="1"/><path d="M28 10 Q32 6 36 10 Q34 14 28 10Z" fill="#E0C040"/></svg>`,
+};
+
+// ══ CONSTANTS ══
+const PROS_N=['Misérable','Pauvre','Correcte','Florissante','Rayonnante'];
+const PROS_R_POP=[1,1.5,2,2.5,3];  // PO par habitant par tour
+const PROS_BASE_GROWTH=[1,3,5,7,10]; // Croissance de base par niveau de prospérité
+const PROS_C=['p0','p1','p2','p3','p4'];
+
+// Base buildings that can NEVER be destroyed
+const BASE_BLDS_IDS=new Set(['forge-base','auberge-base','magasin-base','murs-base','caserne-base','cellules','ecuries-base']);
+
+const BLDS=[
+  {id:'routes',cat:'civil',zone:'v',name:'Routes remise en état',cost:100,eff:'Prospérité +1',pre:[],rep:null,icon:'routes',ob(){G.pros=Math.min(4,G.pros+1);}},
+  {id:'logements',cat:'civil',zone:'v',name:'Logements réparés',cost:150,eff:'Population +10',pre:[],rep:null,icon:'logements',ob(){G.pop+=10;}},
+  {id:'champs-culture',cat:'civil',zone:'v',name:'Champs remis en culture',cost:100,eff:'+1 Pop/Tour',pre:['pop≥60'],rep:null,icon:'champs-culture'},
+  {id:'sanctuaire',cat:'civil',zone:'v',name:'Sanctuaire local',cost:150,eff:'+1 Pop/Tour, +événements positifs',pre:['pop≥70'],rep:null,icon:'sanctuaire',ob(){addD(['pelerinage','miracle']);}},
+  {id:'marche-permanent',cat:'civil',zone:'v',name:'Marché permanent',cost:300,eff:'+2 Pop/T, +5 PO/T, Fête→Foire',pre:['routes','pros>0','pop≥100'],rep:null,icon:'marche-permanent',ob(){swapD('fete-village','foire');}},
+  {id:'quartier-residentiel',cat:'civil',zone:'v',name:'Quartier résidentiel',cost:300,eff:'+15 Pop, +2 Pop/Tour',pre:['logements','pros>0'],rep:'logements',icon:'quartier-residentiel',ob(){G.pop+=15;}},
+  {id:'faubourgs',cat:'civil',zone:'v',name:'Faubourgs',cost:800,eff:'+50 Pop, +5 Pop/Tour',pre:['quartier-residentiel','pros≥2','pop≥200'],rep:'quartier-residentiel',icon:'faubourgs',ob(){G.pop+=50;}},
+  {id:'exploitation-agricole',cat:'civil',zone:'v',name:'Exploitations agricoles',cost:300,eff:'+4 Pop/T, Pros +1, retire Famine',pre:['pop≥120'],rep:'champs-culture',icon:'exploitation-agricole',ob(){G.pros=Math.min(4,G.pros+1);rmD('famine');}},
+  {id:'jardins',cat:'civil',zone:'v',name:'Jardins et Serres',cost:300,eff:'Prospérité +1, +événements',pre:['pros≥2','pop≥100'],rep:null,icon:'jardins',ob(){G.pros=Math.min(4,G.pros+1);addD(['reception','mecene']);}},
+  {id:'ecole',cat:'civil',zone:'v',name:'École',cost:150,eff:'Prospérité +1',pre:['routes','pros>0'],rep:null,icon:'ecole',ob(){G.pros=Math.min(4,G.pros+1);}},
+  {id:'bain-public',cat:'civil',zone:'v',name:'Bain public',cost:200,eff:'Prospérité +1',pre:['pros≥2','pop≥120'],rep:null,icon:'bain-public',ob(){G.pros=Math.min(4,G.pros+1);}},
+  // MILITARY — caserne-remise-neuf remplace caserne-base (+1→+2 net = +1 bonus)
+  {id:'caserne-remise-neuf',cat:'military',zone:'c',name:'Caserne remise à neuf',cost:200,eff:'Sécu Max +1 (passe de +1 à +2)',pre:[],rep:'caserne-base',icon:'caserne-remise-neuf'},
+  {id:'tour-de-guet',cat:'military',zone:'c',name:'Tour de guet',cost:150,eff:'Sécu Max +1',pre:['routes'],rep:null,icon:'tour-de-guet'},
+  {id:'bureau-bailli',cat:'military',zone:'c',name:'Bureau du bailli',cost:400,eff:'Sécurité +1 / Tour',pre:['pop≥150'],rep:null,icon:'bureau-bailli'},
+  {id:'armurerie',cat:'military',zone:'c',name:'Armurerie',cost:600,eff:'Retire Attaque & Terreur du deck',pre:['pros≥2','caserne-remise-neuf'],rep:null,icon:'armurerie',ob(){rmD('attaque-monstre');rmD('terreur');}},
+  {id:'salle-entrainement',cat:'military',zone:'c',name:"Salle d'entraînement",cost:800,eff:'Action : avantage sauvegarde/maîtrise',pre:['caserne-remise-neuf'],rep:null,icon:'salle-entrainement'},
+  {id:'vastes-ecuries',cat:'military',zone:'c',name:'Vastes écuries',cost:600,eff:'Montures larges et volantes',pre:['pros≥2','caserne-remise-neuf'],rep:'ecuries-base',icon:'vastes-ecuries'},
+  // Château-bourg remplace murs (+1→+3 net = +2 bonus)
+  {id:'chateau-bourg',cat:'military',zone:'c',name:'Château & Bourg fortifié',cost:300,eff:'Sécu Max +2 (passe de +1 à +3), retire Raid',pre:['quartier-residentiel','pop≥150'],rep:'murs-base',icon:'chateau-bourg',ob(){rmD('raid');}},
+  {id:'cercle-teleportation',cat:'military',zone:'c',name:'Cercle de téléportation',cost:800,eff:'Cercle permanent',pre:['caserne-remise-neuf'],rep:null,icon:'cercle-teleportation'},
+  // ECONOMIC
+  {id:'forge-amelioree',cat:'economic',zone:'v',name:'Forge améliorée',cost:300,eff:'Équipement non-magique −50%',pre:['pros>0','routes'],rep:'forge-base',icon:'forge-amelioree'},
+  {id:'auberge-accueillante',cat:'economic',zone:'v',name:'Auberge accueillante',cost:150,eff:'+20 PO/T, +événements',pre:['routes'],rep:'auberge-base',icon:'auberge-accueillante',ob(){addD(['halte-frequentee','relais']);}},
+  {id:'auberge-chateau-reputee',cat:'economic',zone:'v',name:'Auberge réputée',cost:800,eff:'+50 PO/T, +événements',pre:['auberge-accueillante','pros≥2','pop≥160'],rep:'auberge-accueillante',icon:'auberge-chateau-reputee',ob(){addD(['clientele-prestige','contrat-discret','reseau-espions']);}},
+  {id:'comptoir',cat:'economic',zone:'v',name:'Comptoir',cost:150,eff:'Stock Commun −50%',pre:['pros>0','routes'],rep:'magasin-base',icon:'comptoir'},
+  {id:'echoppes-specialisee',cat:'economic',zone:'v',name:'Échoppes spécialisée',cost:800,eff:'Peu Commun, +30 PO/T',pre:['comptoir','pros≥2','pop≥160'],rep:'comptoir',icon:'echoppes-specialisee'},
+  {id:'peage-normal',cat:'economic',zone:'v',name:'Péage (+30 PO/T)',cost:100,eff:'+30 PO/Tour',pre:['routes','pros>0'],rep:null,icon:'peage-normal'},
+  {id:'peage-riche',cat:'economic',zone:'v',name:'Péage riche (−Pros)',cost:100,eff:'+100 PO/T, Prospérité −1',pre:['routes','pros>0'],rep:null,icon:'peage-riche',ob(){G.pros=Math.max(0,G.pros-1);}},
+  {id:'atelier-alchimie',cat:'economic',zone:'v',name:"Atelier d'alchimie",cost:1000,eff:'Action : créer potions',pre:['pros≥2','exploitation-agricole','pop≥200'],rep:null,icon:'atelier-alchimie'},
+  {id:'atelier-enchanteur',cat:'economic',zone:'c',name:"Atelier d'enchanteur",cost:1200,eff:'Action : craft objet magique',pre:['pros≥3','echoppes-specialisee','pop≥250'],rep:null,icon:'atelier-enchanteur'},
+  {id:'bibliotheque',cat:'economic',zone:'v',name:'Bibliothèque',cost:600,eff:'Action : avantage jets Arcanes/…',pre:['pros≥2','pop≥160'],rep:null,icon:'bibliotheque'},
+  {id:'salle-de-jeux',cat:'economic',zone:'v',name:'Salle de jeux',cost:200,eff:'+80 PO/T, Sécu Max −1',pre:['pros≥2','pop≥100'],rep:null,icon:'salle-de-jeux'},
+  {id:'scriptorium',cat:'economic',zone:'c',name:'Scriptorium',cost:600,eff:'Action : parchemins de sorts',pre:['pros≥2','pop≥180'],rep:null,icon:'scriptorium'},
+];
+
+const ACTION_BLDS=BLDS.filter(b=>['salle-entrainement','atelier-alchimie','atelier-enchanteur','bibliotheque','scriptorium'].includes(b.id));
+
+// Player action types — kept for reference only
+
+// ══ EVENTS ══
+// Events that apply income MODIFIER to current-turn income (not gold reserve)
+// G.incMod is added to baseIncome() for this turn when resources are collected
+const EVTS={
+  'bonne-recolte':{name:'Bonne récolte',type:'positive',flavor:"Les greniers débordent, la saison fut clémente.",eff:'+50 PO & Pop +5',apply(){G.gold+=50;G.pop+=5;lg('Bonne récolte : +50 PO, +5 Pop','le-good');}},
+  'inspection-royale':{name:'Inspection royale',type:'neutral',flavor:"Des agents du roi arrivent à l'improviste, parchemins en main.",eff:"Jet de Tromperie si détournement.",apply(){lg('Inspection royale : jet si détournement.','le-event');}},
+  'fete-village':{name:'Fête de village',type:'neutral',flavor:"Danses, chants et rires résonnent jusqu'au château.",eff:"Aucun effet mécanique.",apply(){lg('Fête de village : aucun effet.','');}},
+  'tensions':{name:'Tensions entre voisins',type:'neutral',flavor:"Une vieille querelle de clôture dégénère en pugilat.",eff:"Aucun effet mécanique.",apply(){lg('Tensions : aucun effet.','');}},
+  'calme-plat':{name:'Calme plat',type:'neutral',flavor:"Le domaine baigne dans une quiétude rare.",eff:"Aucun effet mécanique.",apply(){lg('Calme plat : aucun effet.','');}},
+  'visiteurs':{name:'Visiteurs amicaux',type:'neutral',flavor:"Une famille de marchands décide de s'établir ici.",eff:"Pop +1",apply(){G.pop+=1;lg('Visiteurs amicaux : Pop +1','le-good');}},
+  // Vols nocturnes : malus sur le revenu du tour, pas la réserve
+  'vols-nocturnes':{name:'Vols nocturnes',type:'negative',flavor:"Des silhouettes dans la nuit, des serrures forcées au matin.",eff:"Sécu −1. Si 0 : revenu du tour −20%.",apply(){
+    if(G.sec>0){G.sec--;lg('Vols nocturnes : Sécu −1','le-bad');}
+    else{G.incMod-=0.20;lg('Vols nocturnes GRAVE : revenu du tour −20%','le-bad');}
+  }},
+  'epidemie':{name:'Épidémie mineure',type:'negative',flavor:"La toux se répand de maison en maison, inexorable.",eff:"Sécu −1. Si 0 : Pop −5.",apply(){
+    if(G.sec>0){G.sec--;lg('Épidémie : Sécu −1','le-bad');}
+    else{G.pop-=5;lg('Épidémie GRAVE : Pop −5','le-bad');}
+  }},
+  // Dégradation : bâtiment aléatoire inutilisable CE tour (pas de bonus ressources/actions)
+  'degradation':{name:'Dégradation des infrastructures',type:'negative',flavor:"Des poutres pourries, un mur qui s'effrite — l'entretien a été négligé.",eff:"Sécu −1. Si 0 : un bâtiment aléatoire est hors service ce tour.",apply(){
+    if(G.sec>0){G.sec--;lg('Dégradation : Sécu −1','le-bad');}
+    else{
+      const targets=[...G.blds].filter(id=>!BASE_BLDS_IDS.has(id));
+      if(targets.length>0){
+        shuf(targets);
+        G.degradedThisTurn=targets[0];
+        const bld=BLDS.find(b=>b.id===targets[0]);
+        lg(`Dégradation GRAVE : "${bld?bld.name:targets[0]}" hors service ce tour !`,'le-bad');
+      } else lg('Dégradation GRAVE : aucun bâtiment à dégrader.','le-bad');
+    }
+  }},
+  'famine':{name:'Famine',type:'grave',flavor:"Le blé n'a pas levé. Les ventres crient. Les plus faibles partent.",eff:"Pas de croissance. Sécu −2. Si 0 : Pop −10%, Pros −1.",apply(){
+    G.skipGrowth=true;
+    if(G.sec>=2){G.sec-=2;lg('Famine : Sécu −2, pas de croissance','le-bad');}
+    else{G.sec=0;const l=Math.floor(G.pop*.1);G.pop-=l;G.pros=Math.max(0,G.pros-1);lg(`Famine GRAVE : Pop −${l}, Pros −1`,'le-bad');}
+  }},
+  'raid':{name:'Raid',type:'grave',flavor:"Le sol tremble sous les bottes des pillards.",eff:"Sécu −2. Si 0 : Or /2, Pop −10.",apply(){
+    if(G.sec>=2){G.sec-=2;lg('Raid : Sécu −2','le-bad');}
+    else{G.sec=0;G.gold=Math.floor(G.gold/2);G.pop-=10;lg('Raid GRAVE : Or /2, Pop −10','le-bad');}
+  }},
+  'terreur':{name:'Terreur persistante',type:'grave',flavor:"Rumeurs de monstres dans les bois. La panique gagne les esprits.",eff:"Pas de croissance, Pop −2. Attaque monstre ajoutée au deck.",apply(){
+    G.skipGrowth=true;G.pop-=2;
+    lg('Terreur persistante : Pop −2, Attaque monstre ajoutée','le-bad');
+    rmD('terreur');addD(['attaque-monstre']);
+  }},
+  // Attaque de monstre : détruit un bâtiment construit (pas les bases)
+  'attaque-monstre':{name:'Attaque de monstre',type:'grave',flavor:"La bête fond sur le domaine. Les flammes et les cris percent la nuit.",eff:"Sécu −3. Si 0 : Pros −1, Pop −20, un bâtiment construit détruit.",apply(){
+    if(G.sec>=3){G.sec-=3;lg('Attaque monstre : Sécu −3','le-bad');}
+    else{
+      G.sec=0;G.pros=Math.max(0,G.pros-1);G.pop-=20;
+      // Détruire un bâtiment aléatoire construit (jamais les bases)
+      const destroyable=[...G.blds].filter(id=>!BASE_BLDS_IDS.has(id));
+      if(destroyable.length>0){
+        shuf(destroyable);
+        const victim=destroyable[0];
+        G.blds.delete(victim);
+        const bld=BLDS.find(b=>b.id===victim);
+        lg(`Attaque MONSTRE GRAVE : Pros −1, Pop −20, "${bld?bld.name:victim}" DÉTRUIT !`,'le-bad');
+      } else lg('Attaque MONSTRE GRAVE : Pros −1, Pop −20, aucun bâtiment à détruire.','le-bad');
+    }
+    rmD('attaque-monstre');addD(['terreur']);
+  }},
+  'foire':{name:'Foire',type:'positive',flavor:"Des caravanes de toute la région convergent vers Aiglion.",eff:"Prospérité +1",apply(){G.pros=Math.min(4,G.pros+1);lg('Foire : Prospérité +1 !','le-good');}},
+  // Pèlerinage : +10% sur le revenu du tour
+  'pelerinage':{name:'Pèlerinage',type:'positive',flavor:"Des pèlerins en longues robes emplissent les chemins.",eff:"+10% sur le revenu du tour",apply(){G.incMod+=0.10;lg('Pèlerinage : revenu du tour +10%','le-good');}},
+  'miracle':{name:'Miracle',type:'positive',flavor:"Par quelque grâce divine, le pire est détourné.",eff:"Prochaine menace annulée.",apply(){G.miracle=true;lg('Miracle : prochaine menace annulée !','le-good');}},
+  'reception':{name:'Réception distinguée',type:'positive',flavor:"Des seigneurs de la cour honorent Aiglion de leur présence.",eff:"Un allié à la cour.",apply(){lg('Réception distinguée : un allié à la cour !','le-good');}},
+  'mecene':{name:'Mécène',type:'positive',flavor:"Un marchand prospère voit en Aiglion une promesse d'avenir.",eff:"+200 PO (trésorerie directe)",apply(){G.gold+=200;lg('Mécène : +200 PO !','le-good');}},
+  'halte-frequentee':{name:'Halte bien fréquentée',type:'positive',flavor:"Toutes les chambres occupées, la salle bruisse de voyageurs.",eff:"Pop +15",apply(){G.pop+=15;lg('Halte fréquentée : Pop +15','le-good');}},
+  // Relais : +10% sur le revenu du tour
+  'relais':{name:'Relais de voyageur',type:'positive',flavor:"Les chevaux changés, les bourses échangées — l'auberge prospère.",eff:"+10% sur le revenu du tour",apply(){G.incMod+=0.10;lg('Relais de voyageur : revenu du tour +10%','le-good');}},
+  // Clientèle de prestige : +20% sur le revenu du tour (+ Pros si Jardins)
+  'clientele-prestige':{name:'Clientèle de prestige',type:'positive',flavor:"Des ambassadeurs, des ducs — Aiglion est sur toutes les lèvres.",eff:"+20% sur le revenu du tour. +Pros si Jardins.",apply(){
+    G.incMod+=0.20;
+    if(G.blds.has('jardins')){G.pros=Math.min(4,G.pros+1);lg('Clientèle prestige : revenu +20%, Pros +1','le-good');}
+    else lg('Clientèle prestige : revenu du tour +20%','le-good');
+  }},
+  'contrat-discret':{name:'Contrat discret',type:'positive',flavor:"Un accord scellé dans l'ombre, avantageux pour tous.",eff:"Prochaine construction −50%.",apply(){G.discount=true;lg('Contrat discret : prochaine construction −50% !','le-good');}},
+  // Réseau d'espions : pioche 2 cartes, les joueurs choisissent laquelle s'applique
+  'reseau-espions':{name:"Réseau d'espions",type:'positive',flavor:"Vos informateurs murmurent à votre oreille des secrets précieux.",eff:"Pioche 2 cartes événement. Les joueurs choisissent celle qui s'applique.",apply(){
+    openChoiceModal();
+    // Phase doesn't advance yet — it will when choice is confirmed
+  }},
+};
+
+// ══ GAME STATE ══
+const G={
+  turn:1,phase:0,gold:300,pop:55,pros:0,sec:2,
+  blds:new Set(),deck:[],
+  skipGrowth:false,miracle:false,discount:false,
+  incMod:0,
+  degradedThisTurn:null,
+  buildsThisTurn:0,
+  mgmtAction:'',      // 1 management action per turn
+  players:['Joueur 1','Joueur 2','Joueur 3'],
+  pActs:[],           // per-player building action slots
+  logs:[],tab:'civil',
+  pendingChoiceEvts:null
+};
+
+// ══ MECHANICS ══
+// Caserne remise à neuf REMPLACE caserne-base : net +1 (de +1 à +2)
+// Château-bourg REMPLACE murs-base : net +2 (de +1 à +3)
+function secMax(){
+  let m=1; // murs-base: +1
+  m+=1;    // caserne-base: +1 (total 2 au départ)
+  if(G.blds.has('caserne-remise-neuf'))m+=1; // remplace caserne (+1→+2, net +1)
+  if(G.blds.has('chateau-bourg'))m+=2;       // remplace murs (+1→+3, net +2)
+  if(G.blds.has('tour-de-guet'))m+=1;
+  if(G.blds.has('salle-de-jeux'))m-=1;
+  return Math.max(1,m);
+}
+
+// Sécurité passive gagnée chaque tour (bureau du bailli)
+function secPerTurn(){
+  let s=0;
+  if(G.blds.has('bureau-bailli')&&G.degradedThisTurn!=='bureau-bailli')s+=1;
+  return s;
+}
+
+function incBonus(){
+  let b=5; // auberge modeste base
+  if(G.blds.has('auberge-accueillante')&&G.degradedThisTurn!=='auberge-accueillante')b+=20;
+  if(G.blds.has('auberge-chateau-reputee')&&G.degradedThisTurn!=='auberge-chateau-reputee')b+=50;
+  if(G.blds.has('peage-normal')&&G.degradedThisTurn!=='peage-normal')b+=30;
+  if(G.blds.has('peage-riche')&&G.degradedThisTurn!=='peage-riche')b+=100;
+  if(G.blds.has('marche-permanent')&&G.degradedThisTurn!=='marche-permanent')b+=5;
+  if(G.blds.has('echoppes-specialisee')&&G.degradedThisTurn!=='echoppes-specialisee')b+=30;
+  if(G.blds.has('salle-de-jeux')&&G.degradedThisTurn!=='salle-de-jeux')b+=80;
+  return b;
+}
+
+function baseIncome(){
+  const popIncome=Math.floor(G.pop*PROS_R_POP[G.pros]);
+  const bonus=incBonus();
+  const raw=popIncome+bonus;
+  return Math.floor(raw*(1+G.incMod));
+}
+
+function popGrowth(){
+  let g=PROS_BASE_GROWTH[G.pros];
+  if(G.blds.has('champs-culture')&&G.degradedThisTurn!=='champs-culture')g+=1;
+  if(G.blds.has('exploitation-agricole')&&G.degradedThisTurn!=='exploitation-agricole')g+=4;
+  if(G.blds.has('marche-permanent')&&G.degradedThisTurn!=='marche-permanent')g+=2;
+  if(G.blds.has('sanctuaire')&&G.degradedThisTurn!=='sanctuaire')g+=1;
+  if(G.blds.has('quartier-residentiel')&&G.degradedThisTurn!=='quartier-residentiel')g+=2;
+  if(G.blds.has('faubourgs')&&G.degradedThisTurn!=='faubourgs')g+=5;
+  return g;
+}
+
+
+function initDeck(){G.deck=['bonne-recolte','inspection-royale','fete-village','tensions','calme-plat','visiteurs','vols-nocturnes','epidemie','degradation','famine','raid','terreur'];}
+function addD(ids){ids.forEach(id=>{if(!G.deck.includes(id))G.deck.push(id);});}
+function rmD(id){G.deck=G.deck.filter(e=>e!==id);}
+function swapD(from,to){rmD(from);addD([to]);}
+function chkPre(b){for(const p of b.pre){if(p.startsWith('pop≥')){if(G.pop<parseInt(p.slice(4)))return false;}else if(p==='pros>0'){if(G.pros<1)return false;}else if(p.startsWith('pros≥')){if(G.pros<parseInt(p.slice(5)))return false;}else if(!G.blds.has(p))return false;}return true;}
+function isReplaced(id){return BLDS.some(b=>b.rep===id&&G.blds.has(b.id));}
+function shuf(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
+function toRoman(n){const v=[1000,900,500,400,100,90,50,40,10,9,5,4,1],s=['M','CM','D','CD','C','XC','L','XL','X','IX','V','IV','I'];let r='';for(let i=0;i<v.length;i++)while(n>=v[i]){r+=s[i];n-=v[i];}return r;}
+
+// ══ RENDER ══
+function renderStats(){
+  const sm=secMax(),inc=baseIncome(),g=popGrowth(),spt=secPerTurn();
+  document.getElementById('sv-gold').textContent=G.gold.toLocaleString('fr')+' PO';
+  const modTxt=G.incMod!==0?` (×${(1+G.incMod).toFixed(2)})`:'';
+  document.getElementById('sv-inc').textContent='+'+inc+' PO / tour'+modTxt;
+  document.getElementById('sv-pop').textContent=G.pop+' / 500 hab.';
+  const grwthTxt=(g>=0?'+':'')+g+' hab. / tour'+(G.pop>=500?' [MAX]':'');
+  document.getElementById('sv-grwth').textContent=grwthTxt;
+  document.getElementById('sv-sec').textContent=G.sec+' / '+sm+(spt>0?` (+${spt}/tour)`:'');
+  const pct=sm>0?(G.sec/sm)*100:0;
+  const f=document.getElementById('sec-fill');f.style.width=pct+'%';f.className='sec-fill'+(G.sec<=0?' low':'');
+  const c=document.getElementById('pros-chip');c.className='pros-chip '+PROS_C[G.pros];c.textContent=PROS_N[G.pros];
+  document.getElementById('sv-rpp').textContent=PROS_R_POP[G.pros]+' PO/hab.';
+  document.getElementById('turn-pill').textContent='Tour '+toRoman(G.turn);
+  // Prosperity boost button: show only if pros < 2 (< Correcte)
+  const boostBtn=document.getElementById('pros-boost-btn');
+  if(boostBtn){
+    const canBoost=G.pros<2&&G.gold>=250;
+    const shouldShow=G.pros<2;
+    boostBtn.style.display=shouldShow?'block':'none';
+    boostBtn.disabled=!canBoost;
+    boostBtn.title=canBoost?'Dépenser 250 PO pour augmenter la prospérité':`Fonds insuffisants (${G.gold} / 250 PO)`;
+  }
+}
+
+function renderTown(){
+  const zv=document.getElementById('zone-v'),zc=document.getElementById('zone-c');
+  const baseV=[{id:'forge-base',icon:'forge-base',name:'Forge basique'},{id:'auberge-base',icon:'auberge-base',name:'Auberge modeste'},{id:'magasin-base',icon:'magasin-base',name:'Magasin général'}];
+  const baseC=[{id:'murs-base',icon:'murs-base',name:'Murs & Douves'},{id:'caserne-base',icon:'caserne-base',name:'Petite caserne'},{id:'cellules',icon:'cellules',name:'Cellules'},{id:'ecuries-base',icon:'ecuries-base',name:'Écuries'}];
+  const builtV=BLDS.filter(b=>b.zone==='v'&&G.blds.has(b.id)&&!isReplaced(b.id));
+  const builtC=BLDS.filter(b=>b.zone==='c'&&G.blds.has(b.id)&&!isReplaced(b.id));
+  const visBaseV=baseV.filter(b=>!isReplaced(b.id));
+  const visBaseC=baseC.filter(b=>!isReplaced(b.id));
+  function mkSticker(bld,sz=44){
+    const fn=IC[bld.icon||bld.id];
+    const svg=fn?fn(sz):`<svg width="${sz}" height="${sz}"><rect width="${sz}" height="${sz}" fill="#888" rx="4"/></svg>`;
+    const d=document.createElement('div');
+    const isDeg=G.degradedThisTurn===bld.id;
+    d.className='bld-sticker'+(isDeg?' degraded':'');
+    d.innerHTML=svg+`<div class="bld-sticker-lbl">${bld.name}</div><div class="bld-tip">${bld.name}${isDeg?'<br><span style="color:#ff8040">⚠ Hors service ce tour</span>':''}</div>`;
+    return d;
+  }
+  zv.innerHTML='';zc.innerHTML='';
+  [...visBaseV,...builtV].forEach(b=>zv.appendChild(mkSticker(b)));
+  [...visBaseC,...builtC].forEach(b=>zc.appendChild(mkSticker(b)));
+}
+
+function getMissingPrereqs(b){
+  const m=[];
+  for(const p of b.pre){
+    if(p.startsWith('pop≥')){const n=parseInt(p.slice(4));if(G.pop<n)m.push(`Population ≥ ${n} (actuel: ${G.pop})`);}
+    else if(p==='pros>0'){if(G.pros<1)m.push('Prospérité > Misérable');}
+    else if(p.startsWith('pros≥')){const n=parseInt(p.slice(5));if(G.pros<n)m.push('Prospérité ≥ '+PROS_N[n]);}
+    else if(!G.blds.has(p)){const dep=BLDS.find(x=>x.id===p);m.push(dep?dep.name:p);}
+  }
+  return m;
+}
+
+// Floating tooltip positioned via JS to escape overflow clipping
+const shopTip=document.getElementById('shop-tip');
+function showTip(el,html){
+  shopTip.innerHTML=html;shopTip.style.display='block';
+  const r=el.getBoundingClientRect();
+  let left=r.left+r.width/2-shopTip.offsetWidth/2;
+  let top=r.top-shopTip.offsetHeight-10;
+  if(left<8)left=8;
+  if(left+shopTip.offsetWidth>window.innerWidth-8)left=window.innerWidth-shopTip.offsetWidth-8;
+  if(top<8)top=r.bottom+10;
+  shopTip.style.left=left+'px';shopTip.style.top=top+'px';
+}
+function hideTip(){shopTip.style.display='none';}
+
+function renderShop(){
+  const list=document.getElementById('shop-list');list.innerHTML='';
+  const freeSupervisor=hasFreeSupervisor();
+  BLDS.filter(b=>b.cat===G.tab).forEach(bld=>{
+    const built=G.blds.has(bld.id),rep=isReplaced(bld.id),ok=chkPre(bld);
+    const cost=G.discount?Math.floor(bld.cost*.5):bld.cost;
+    const aff=G.gold>=cost;
+    const missing=getMissingPrereqs(bld);
+
+    // Péage exclusivity: can't have both peage-normal and peage-riche
+    let exclusive=false,exclusiveMsg='';
+    if(bld.id==='peage-normal'&&G.blds.has('peage-riche')){exclusive=true;exclusiveMsg='Incompatible avec le Péage riche';}
+    if(bld.id==='peage-riche'&&G.blds.has('peage-normal')){exclusive=true;exclusiveMsg='Incompatible avec le Péage (+30 PO/T)';}
+
+    const readyToBuild=!built&&!rep&&ok&&aff&&missing.length===0&&!exclusive;
+    const canBuild=readyToBuild&&freeSupervisor;
+
+    let cls='shop-card';
+    if(built||rep)cls+=' built';
+    else if(canBuild)cls+=' can-build';
+    else cls+=' locked';
+
+    let tipHtml='<strong style="font-family:Cinzel,serif;font-size:.8rem;color:var(--gold-light)">'+bld.name+'</strong><br>';
+    tipHtml+='<span style="font-size:.7rem;font-style:italic;color:rgba(240,230,200,.6)">'+bld.eff+'</span><br>';
+    if(built)tipHtml+='<span style="color:#60c060">✓ Déjà construit</span>';
+    else if(rep)tipHtml+='<span style="color:#6090c0">⟲ Remplacé par un upgrade</span>';
+    else if(exclusive)tipHtml+=`<span style="color:#cc7744">⊗ ${exclusiveMsg}</span>`;
+    else if(missing.length){
+      tipHtml+='<span style="color:#cc6060;font-family:Cinzel,serif;font-size:.68rem;letter-spacing:.08em">PRÉREQUIS MANQUANTS :</span><br>';
+      tipHtml+=missing.map(m=>'<span style="color:#e08060">• '+m+'</span>').join('<br>');
+    } else if(!aff){
+      tipHtml+=`<span style="color:#cc9900">Or insuffisant (${G.gold.toLocaleString('fr')} / ${cost} PO)</span>`;
+    } else if(!freeSupervisor){
+      const s=countSupervisions(),u=countBuildsThisTurn();
+      if(s===0)tipHtml+='<span style="color:#cc7744">⚒ Supervision requise — choisissez « Superviser une Construction » comme action de gestion</span>';
+      else tipHtml+=`<span style="color:#cc7744">⚒ Supervision déjà utilisée ce tour (${u}/${s})</span>`;
+    } else {
+      tipHtml+=`<span style="color:#90d070">✓ Disponible — cliquer pour construire</span>`;
+    }
+
+    const c=document.createElement('div');c.className=cls;
+    c.innerHTML=`<div class="sc-name">${bld.name}</div><div class="sc-cost">${built||rep?'—':cost+' PO'}</div><div class="sc-eff">${bld.eff}</div>`+
+      (built?'<span class="sc-badge" style="color:#60c060">✓</span>':'')+
+      (rep?'<span class="sc-badge" style="color:#6090c0">⟲</span>':'')+
+      (exclusive?'<span class="sc-badge" style="color:#cc7744">⊗</span>':'')+
+      (!built&&!rep&&!exclusive&&(!ok||!aff||!freeSupervisor)?'<span class="sc-badge" style="color:#cc6060">🔒</span>':'');
+    c.addEventListener('mouseenter',()=>showTip(c,tipHtml));
+    c.addEventListener('mouseleave',hideTip);
+    if(canBuild)c.onclick=()=>openModal(bld,cost);
+    list.appendChild(c);
+  });
+}
+
+function setTab(t,el){G.tab=t;document.querySelectorAll('.shop-tab').forEach(x=>x.classList.remove('active'));el.classList.add('active');renderShop();}
+
+// ══ PLAYER ACTIONS ══
+// New model:
+// - 1 management action per turn (shared): security+1, security+2, supervise construction, or none
+// - Each player can independently use a building action
+// G.mgmtAction = '' | 'Augmenter la Sécurité (+1)' | 'Augmenter la Sécurité (+2, Présent)' | 'Superviser une Construction'
+// G.pActs[i] = '' | building name (individual per player)
+
+function addPlayer(){if(G.players.length>=6){lg('Maximum 6 joueurs.','');return;}G.players.push('Joueur '+(G.players.length+1));G.pActs.push('');renderPlayers();}
+function removePlayer(){if(G.players.length<=1){lg('Il faut au moins 1 joueur.','');return;}G.players.pop();G.pActs.pop();renderPlayers();}
+
+function renderPlayers(){
+  const el=document.getElementById('players-ui');
+  const ab=ACTION_BLDS.filter(b=>G.blds.has(b.id)&&G.degradedThisTurn!==b.id);
+
+  let html=`
+    <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(0,0,0,.12)">
+      <div style="font-family:Cinzel,serif;font-size:.58rem;letter-spacing:.16em;color:var(--stone-light);text-transform:uppercase;margin-bottom:6px">Action de Gestion du Tour</div>
+      <select class="act-sel" style="width:100%" onchange="setMgmtAction(this.value)">
+        <option value="">— Aucune action de gestion —</option>
+        <option value="Augmenter la Sécurité (+1)" ${G.mgmtAction==='Augmenter la Sécurité (+1)'?'selected':''}>Augmenter la Sécurité (+1)</option>
+        <option value="Augmenter la Sécurité (+2, Présent)" ${G.mgmtAction==='Augmenter la Sécurité (+2, Présent)'?'selected':''}>Augmenter la Sécurité (+2, Présent)</option>
+        <option value="Superviser une Construction" ${G.mgmtAction==='Superviser une Construction'?'selected':''}>Superviser une Construction</option>
+      </select>
+      ${G.mgmtAction==='Superviser une Construction'?`<div style="font-size:.65rem;font-style:italic;color:#7a9060;margin-top:4px">✓ Construction autorisée ce tour (${G.buildsThisTurn||0} bâtiment${(G.buildsThisTurn||0)!==1?'s':''} construit${(G.buildsThisTurn||0)!==1?'s':''})</div>`:''}
+    </div>`;
+
+  if(ab.length>0){
+    html+=`<div style="font-family:Cinzel,serif;font-size:.58rem;letter-spacing:.16em;color:var(--stone-light);text-transform:uppercase;margin-bottom:6px">Actions des Joueurs — Bâtiments</div>`;
+    html+=`<div style="display:flex;gap:6px;margin-bottom:7px;align-items:center">
+      <span style="font-family:Cinzel,serif;font-size:.7rem;color:var(--ink-mid);flex:1">${G.players.length} joueur${G.players.length>1?'s':''}</span>
+      <button class="mini-btn" style="flex:0;padding:3px 8px;font-size:.7rem" onclick="removePlayer()">−</button>
+      <button class="mini-btn" style="flex:0;padding:3px 8px;font-size:.7rem" onclick="addPlayer()">+</button>
+    </div>`;
+    html+=G.players.map((n,i)=>`
+    <div class="player-row">
+      <div class="player-name">${n}</div>
+      <select class="act-sel" onchange="setPlayerAction(${i},this.value)">
+        <option value="">— Bâtiment —</option>
+        ${ab.map(b=>`<option value="${b.name}" ${G.pActs[i]===b.name?'selected':''}>${b.name}</option>`).join('')}
+      </select>
+    </div>`).join('');
+  } else {
+    html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <span style="font-family:Cinzel,serif;font-size:.58rem;letter-spacing:.16em;color:var(--stone-light);text-transform:uppercase">Joueurs</span>
+      <div style="display:flex;gap:4px">
+        <button class="mini-btn" style="flex:0;padding:3px 8px;font-size:.7rem" onclick="removePlayer()">−</button>
+        <button class="mini-btn" style="flex:0;padding:3px 8px;font-size:.7rem" onclick="addPlayer()">+</button>
+      </div>
+    </div>
+    <div style="font-size:.72rem;font-style:italic;color:var(--stone-light);padding:6px 0">Aucun bâtiment actif disponible.</div>
+    <div style="font-size:.7rem;color:var(--ink-mid)">${G.players.map((n,i)=>`<span style="font-family:Cinzel,serif">${n}</span>`).join(' · ')}</div>`;
+  }
+
+  el.innerHTML=html;
+}
+
+function setMgmtAction(val){
+  const old=G.mgmtAction;
+  G.mgmtAction=val;
+
+  // Undo old security bonus
+  if(old==='Augmenter la Sécurité (+1)'){G.sec=Math.max(0,G.sec-1);}
+  if(old==='Augmenter la Sécurité (+2, Présent)'){G.sec=Math.max(0,G.sec-2);}
+
+  // Apply new security bonus
+  const sm=secMax();
+  if(val==='Augmenter la Sécurité (+1)'){
+    if(G.sec<sm){G.sec=Math.min(sm,G.sec+1);lg(`Action de gestion : Sécurité +1 → ${G.sec}/${sm}`,'le-good');}
+    else lg('Sécurité déjà au maximum.','');
+  }
+  if(val==='Augmenter la Sécurité (+2, Présent)'){
+    if(G.sec<sm){G.sec=Math.min(sm,G.sec+2);lg(`Action de gestion : Sécurité +2 → ${G.sec}/${sm}`,'le-good');}
+    else lg('Sécurité déjà au maximum.','');
+  }
+  if(val==='Superviser une Construction'){lg('Action de gestion : Supervision de construction activée.','le-build');}
+  if(val===''){lg('Action de gestion annulée.','');}
+
+  renderStats();
+  renderPlayers();
+  renderShop();
+}
+
+function setPlayerAction(i,val){
+  G.pActs[i]=val;
+  if(val)lg(`${G.players[i]} : ${val}`,'le-build');
+  renderPlayers();
+}
+
+// Supervision: any assigned "Superviser" action unlocks unlimited builds this turn
+function countSupervisions(){
+  // From management action
+  let s=G.mgmtAction==='Superviser une Construction'?1:0;
+  // From player actions
+  s+=G.pActs.filter(a=>a==='Superviser une Construction').length;
+  return s;
+}
+function countBuildsThisTurn(){return G.buildsThisTurn||0;}
+function hasFreeSupervisor(){return countSupervisions()>0;}
+
+
+function doSec(n){
+  const sm=secMax();
+  if(G.sec>=sm){lg('Sécurité déjà au maximum.','');return;}
+  G.sec=Math.min(sm,G.sec+n);
+  lg(`Sécurité +${n} → ${G.sec}/${sm}`,'le-good');
+  renderStats();
+}
+
+// ══ PHASE ══
+function renderPhase(){
+  const phCls=['ph-event','ph-res','ph-act'];
+  const phLbl=['Phase : Événement','Phase : Ressources','Phase : Actions'];
+  const ind=document.getElementById('phase-ind');ind.className='phase-ind '+phCls[Math.min(G.phase,2)];ind.textContent=phLbl[Math.min(G.phase,2)];
+  for(let i=0;i<4;i++){
+    const e=document.getElementById('fs'+i);e.className='flow-step';
+    if(i<G.phase)e.classList.add('done');
+    else if(i===G.phase)e.classList.add('active');
+  }
+  document.getElementById('btn-draw').disabled=G.phase!==0;
+  document.getElementById('btn-res').disabled=G.phase!==1;
+  document.getElementById('btn-next').disabled=G.phase<2;
+}
+
+// ══ EVENT CARD ══
+// State for the current card display
+let _curCardEv=null,_curCardClr='#7a6a52';
+
+function showCard(ev,clr,lbl){
+  _curCardEv=ev;_curCardClr=clr;
+  // Update compact sidebar view
+  document.getElementById('evt-c-back').style.display='none';
+  const front=document.getElementById('evt-c-front');
+  front.style.display='block';
+  front.style.borderColor=clr;
+  const badge=document.getElementById('c-badge');
+  badge.textContent={positive:'✦ Positif',neutral:'◆ Neutre',negative:'⚠ Négatif',grave:'☠ Grave'}[ev.type]||lbl;
+  badge.style.color=clr;badge.style.borderColor=clr;
+  document.getElementById('c-title').textContent=ev.name;
+  document.getElementById('c-flavor').textContent=ev.flavor||'';
+  const effBox=document.getElementById('c-eff');effBox.textContent='Effet : '+ev.eff;effBox.style.borderLeftColor=clr;
+  // Show fullscreen animation
+  openCardFullscreenAnim(ev,clr,lbl);
+}
+
+function resetCard(){
+  _curCardEv=null;_curCardClr='#7a6a52';
+  document.getElementById('evt-c-back').style.display='flex';
+  document.getElementById('evt-c-front').style.display='none';
+  document.getElementById('evt-c-back').style.display='';
+}
+
+function openCardFullscreenAnim(ev,clr,lbl){
+  // Populate fullscreen card
+  const fsbadge=document.getElementById('cfs-badge');
+  fsbadge.textContent={positive:'✦ Positif',neutral:'◆ Neutre',negative:'⚠ Négatif',grave:'☠ Grave'}[ev.type]||lbl;
+  fsbadge.style.color=clr;fsbadge.style.borderColor=clr;
+  document.getElementById('cfs-title').textContent=ev.name;
+  document.getElementById('cfs-flavor').textContent=ev.flavor||'';
+  const fseff=document.getElementById('cfs-eff');fseff.textContent='Effet : '+ev.eff;fseff.style.borderLeftColor=clr;
+  document.getElementById('card-fs-front').style.borderColor=clr;
+  document.getElementById('cfs-divider').style.background=clr+'55';
+  // Reset to back, open overlay, then flip
+  const obj=document.getElementById('card-fs-obj');
+  obj.classList.remove('flipped');
+  document.getElementById('card-fs-overlay').classList.add('open');
+  setTimeout(()=>obj.classList.add('flipped'),120);
+}
+
+function openCardFullscreen(){
+  if(!_curCardEv)return;
+  openCardFullscreenAnim(_curCardEv,_curCardClr,'');
+}
+
+function closeCardFullscreen(){
+  const obj=document.getElementById('card-fs-obj');
+  obj.classList.remove('flipped');
+  setTimeout(()=>{document.getElementById('card-fs-overlay').classList.remove('open');},420);
+}
+
+// Draw a single event and return it (without applying)
+function drawOneEvent(exclude=[]){
+  const eligible=G.deck.filter(id=>{
+    const ev=EVTS[id];if(!ev)return false;if(exclude.includes(id))return false;
+    if(G.miracle&&['famine','raid','terreur','attaque-monstre','epidemie','vols-nocturnes','degradation'].includes(id))return false;
+    return true;
+  });
+  if(!eligible.length)return null;
+  shuf(eligible);
+  return eligible[0];
+}
+
+function applyEvent(evId){
+  const ev=EVTS[evId];if(!ev)return;
+  const clr={positive:'#60c060',neutral:'#8090a0',negative:'#c06060',grave:'#900020'}[ev.type]||'#808080';
+  const lbl={positive:'✦ Positif',neutral:'◆ Neutre',negative:'⚠ Négatif',grave:'☠ Grave'}[ev.type];
+  showCard(ev,clr,lbl);
+  ev.apply();
+  lg('[Événement] '+ev.name,'le-event');
+}
+
+function drawEvent(){
+  if(G.phase!==0)return;
+  if(G.turn===1){lg('Tour I : pas de carte événement au premier tour.','le-event');G.phase=1;renderAll();return;}
+  G.incMod=0;G.degradedThisTurn=null;
+
+  if(G.pendingDoubleDraw){
+    G.pendingDoubleDraw=false;
+    // Réseau d'espions was already triggered earlier, now double draw
+  }
+
+  const drawn=drawOneEvent();
+  if(!drawn){lg('Deck vide !','le-bad');return;}
+
+  if(G.miracle){
+    const ev=EVTS[drawn];
+    if(ev&&ev.type.match(/negative|grave/)){lg('Miracle annule : '+ev.name,'le-good');G.miracle=false;G.phase=1;renderAll();return;}
+    G.miracle=false;
+  }
+
+  if(drawn==='reseau-espions'){
+    // Apply card visually, then open choice modal
+    applyEvent(drawn);
+    // Don't advance phase yet — choice modal will do it
+    return;
+  }
+
+  applyEvent(drawn);
+  G.phase=1;renderAll();
+}
+
+// ══ RÉSEAU D'ESPIONS choice ══
+function openChoiceModal(){
+  const e1id=drawOneEvent();
+  const e2id=drawOneEvent(e1id?[e1id]:[]);
+  if(!e1id&&!e2id){lg("Réseau d'espions : deck vide, aucune carte disponible.",'le-bad');G.phase=1;renderAll();return;}
+
+  G.pendingChoiceEvts=[e1id,e2id].filter(Boolean);
+  G.choiceSelected=null;
+
+  const cards=document.getElementById('choice-cards');
+  cards.innerHTML='';
+  G.pendingChoiceEvts.forEach((id,idx)=>{
+    const ev=EVTS[id];if(!ev)return;
+    const clr={positive:'#60c060',neutral:'#8090a0',negative:'#c06060',grave:'#900020'}[ev.type];
+    const typeLbl={positive:'✦ Positif',neutral:'◆ Neutre',negative:'⚠ Négatif',grave:'☠ Grave'}[ev.type];
+    const div=document.createElement('div');div.className='choice-card';div.style.borderColor=clr+'44';
+    div.innerHTML=`<div class="cc-type" style="color:${clr}">${typeLbl}</div><div class="cc-name">${ev.name}</div><div class="cc-flavor">${ev.flavor||''}</div><div class="cc-eff" style="border-left-color:${clr}">Effet : ${ev.eff}</div>`;
+    div.onclick=()=>{
+      document.querySelectorAll('.choice-card').forEach(x=>x.classList.remove('selected'));
+      div.classList.add('selected');
+      G.choiceSelected=id;
+      document.getElementById('choice-ok').disabled=false;
+    };
+    cards.appendChild(div);
+  });
+
+  document.getElementById('choice-ok').disabled=true;
+  document.getElementById('choice-modal').classList.add('open');
+}
+
+function confirmChoice(){
+  if(!G.choiceSelected)return;
+  document.getElementById('choice-modal').classList.remove('open');
+  applyEvent(G.choiceSelected);
+  lg(`Réseau d'espions : les joueurs ont choisi "${EVTS[G.choiceSelected]?.name}"`,'le-event');
+  G.pendingChoiceEvts=null;G.choiceSelected=null;
+  G.phase=1;renderAll();
+}
+
+function closeChoice(){document.getElementById('choice-modal').classList.remove('open');G.phase=1;renderAll();}
+
+// ══ RESOURCES ══
+function applyResources(){
+  if(G.phase!==1)return;
+  if(G.turn===1){lg('Tour I : pas de revenus au premier tour.','le-event');G.phase=2;renderAll();return;}
+  const inc=baseIncome(),g=G.skipGrowth?0:popGrowth();
+  const spt=secPerTurn();
+  G.gold+=inc;
+  G.pop=Math.min(500,G.pop+g);
+  const sm=secMax();
+  G.sec=Math.min(sm,G.sec+spt);
+  G.skipGrowth=false;
+  let logMsg=`Ressources perçues : +${inc} PO, +${g} hab.`;
+  if(G.incMod!==0)logMsg+=` (×${(1+G.incMod).toFixed(2)})`;
+  if(spt>0)logMsg+=`, Sécu +${spt} (bailli)`;
+  if(G.pop>=500)logMsg+=' [Pop MAX 500]';
+  lg(logMsg,'le-good');
+  G.phase=2;renderAll();
+}
+
+// ══ NEXT TURN ══
+function nextTurn(){
+  if(G.phase<2)return;
+  G.turn++;G.phase=0;G.pActs=G.players.map(()=>'');G.discount=false;G.mgmtAction='';
+  G.incMod=0;G.degradedThisTurn=null;G.buildsThisTurn=0;
+  lg(`═══ Début du Tour ${toRoman(G.turn)} ═══`,'le-turn');
+  resetCard();
+  renderAll();
+}
+
+// ══ PROSPERITY BOOST ══
+function boostPros(){
+  if(G.pros>=2){lg('Prospérité déjà suffisante pour investir.','');return;}
+  if(G.gold<250){lg(`Fonds insuffisants pour investir (${G.gold} / 250 PO).`,'le-bad');return;}
+  G.gold-=250;
+  G.pros=Math.min(4,G.pros+1);
+  lg(`Investissement : −250 PO, Prospérité → ${PROS_N[G.pros]}`,'le-good');
+  renderStats();
+  renderShop();
+}
+
+// ══ BUILD ══
+let pBld=null,pCost=0;
+function openModal(bld,cost){
+  pBld=bld;pCost=cost;
+  document.getElementById('m-title').textContent='Construire : '+bld.name;
+  document.getElementById('m-body').innerHTML=`Coût : <strong>${cost} PO</strong> (trésorerie : ${G.gold.toLocaleString('fr')} PO → ${(G.gold-cost).toLocaleString('fr')} PO)<br><br><em>${bld.eff}</em>${bld.rep?'<br><br>Remplace : '+bld.rep:''}`;
+  document.getElementById('m-ok').onclick=confirmBuild;
+  document.getElementById('modal').classList.add('open');
+}
+function confirmBuild(){
+  if(!pBld)return;
+  const smBefore=secMax();
+  G.gold-=pCost;G.blds.add(pBld.id);
+  if(G.discount)G.discount=false;
+  if(pBld.ob)pBld.ob();
+  G.buildsThisTurn=(G.buildsThisTurn||0)+1;
+  // If building raised secMax, fill the new security points immediately
+  const smAfter=secMax();
+  const secGain=smAfter-smBefore;
+  if(secGain>0){
+    G.sec=Math.min(smAfter,G.sec+secGain);
+    lg(`🏗 Construit : ${pBld.name} (−${pCost} PO) — Sécu Max +${secGain}, sécurité remplie → ${G.sec}/${smAfter}`,'le-build');
+  } else {
+    lg(`🏗 Construit : ${pBld.name} (−${pCost} PO)`,'le-build');
+  }
+  closeModal();renderAll();
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');pBld=null;}
+
+// ══ GOLD TRANSFER ══
+function transferGold(dir){
+  const amt=parseInt(document.getElementById('transfer-amt').value)||0;
+  if(amt<=0){lg('Montant invalide pour le transfert.','le-bad');return;}
+  if(dir===1){
+    // Joueurs → Domaine (inject)
+    G.gold+=amt;
+    lg(`💰 Transfert : +${amt} PO injectés dans le domaine par les joueurs`,'le-good');
+  } else {
+    // Domaine → Joueurs (withdraw)
+    if(G.gold<amt){lg(`Fonds insuffisants (${G.gold.toLocaleString('fr')} PO disponibles).`,'le-bad');return;}
+    G.gold-=amt;
+    lg(`💸 Retrait : ${amt} PO transférés du domaine aux joueurs`,'le-build');
+  }
+  renderStats();
+}
+
+// ══ DECK MODAL ══
+function openDeckModal(){
+  const TYPE_CLR={positive:'#60c060',neutral:'#8090a0',negative:'#c06060',grave:'#900020'};
+  const TYPE_LBL={positive:'✦ Positif',neutral:'◆ Neutre',negative:'⚠ Négatif',grave:'☠ Grave'};
+  document.getElementById('deck-count').textContent=`${G.deck.length} carte${G.deck.length!==1?'s':''}`;
+  const grid=document.getElementById('deck-grid');
+  grid.innerHTML='';
+  // Sort: positive first, then neutral, then negative, then grave
+  const order={positive:0,neutral:1,negative:2,grave:3};
+  const sorted=[...G.deck].sort((a,b)=>{
+    const ta=EVTS[a]?.type||'neutral',tb=EVTS[b]?.type||'neutral';
+    return (order[ta]||0)-(order[tb]||0);
+  });
+  sorted.forEach(id=>{
+    const ev=EVTS[id];if(!ev)return;
+    const clr=TYPE_CLR[ev.type]||'#808080';
+    const lbl=TYPE_LBL[ev.type]||'';
+    const d=document.createElement('div');
+    d.className='deck-card';
+    d.style.borderColor=clr+'55';
+    d.innerHTML=`<div class="deck-card-type" style="color:${clr}">${lbl}</div><div class="deck-card-name">${ev.name}</div><div class="deck-card-eff">${ev.eff}</div>`;
+    grid.appendChild(d);
+  });
+  document.getElementById('deck-modal').classList.add('open');
+}
+function closeDeckModal(){document.getElementById('deck-modal').classList.remove('open');}
+
+// ══ LOG ══
+function lg(msg,cls){G.logs.unshift({msg,cls});const h=G.logs.slice(0,60).map(e=>`<div class="log-entry ${e.cls}">${e.msg}</div>`).join('');document.getElementById('log-right').innerHTML=h;}
+
+// ══ RENDER ALL ══
+function renderAll(){renderStats();renderTown();renderShop();renderPlayers();renderPhase();}
+
+// ══ FIREBASE SYNC ══
+
+// Determine MJ mode from URL: ?mj=seigneur
+const _mjPassword = 'seigneur';
+const _urlParams = new URLSearchParams(window.location.search);
+const IS_MJ = _urlParams.get('mj') === _mjPassword;
+
+// Undo history (MJ only) — stores serialized snapshots, max 20
+const _undoStack = [];
+const _UNDO_MAX = 20;
+
+function _pushUndo(){
+  if(!IS_MJ)return;
+  _undoStack.push(JSON.stringify(serializeG()));
+  if(_undoStack.length > _UNDO_MAX) _undoStack.shift();
+  _refreshUndoBtn();
+}
+
+function _refreshUndoBtn(){
+  const btn=document.getElementById('btn-undo');
+  if(btn) btn.disabled=_undoStack.length===0;
+}
+
+function undoState(){
+  if(!IS_MJ||!_undoStack.length)return;
+  const snap=JSON.parse(_undoStack.pop());
+  deserializeG(snap);
+  G.cardTrigger=(G.cardTrigger||0); // don't re-trigger animation on undo
+  _lastCardTrigger=G.cardTrigger;
+  renderAll();
+  if(G.logs.length){
+    const h=G.logs.map(e=>`<div class="log-entry ${e.cls}">${e.msg}</div>`).join('');
+    document.getElementById('log-right').innerHTML=h;
+  }
+  _refreshUndoBtn();
+  saveToFirebase();
+  lg('↩ Undo — état précédent restauré.','le-event');
+  saveToFirebase();
+}
+
+// Show MJ badge
+if(IS_MJ) document.getElementById('mj-badge').style.display='';
+// Hide action controls for viewers
+if(!IS_MJ) document.body.classList.add('is-viewer');
+
+// Serialise G for Firebase (Set → Array, strip functions)
+function serializeG(){
+  return {
+    turn:G.turn, phase:G.phase, gold:G.gold, pop:G.pop, pros:G.pros, sec:G.sec,
+    blds:[...G.blds], deck:[...G.deck],
+    skipGrowth:G.skipGrowth, miracle:G.miracle, discount:G.discount,
+    incMod:G.incMod, degradedThisTurn:G.degradedThisTurn||null,
+    buildsThisTurn:G.buildsThisTurn||0, mgmtAction:G.mgmtAction||'',
+    players:[...G.players], pActs:[...G.pActs],
+    logs:G.logs.slice(0,60),
+    tab:G.tab,
+    // Card animation trigger: bump this each time a card is drawn
+    cardTrigger:G.cardTrigger||0,
+    lastCard:G.lastCard||null  // {evId, clr, lbl}
+  };
+}
+
+function deserializeG(data){
+  G.turn=data.turn||1; G.phase=data.phase||0;
+  G.gold=data.gold||0; G.pop=data.pop||55;
+  G.pros=data.pros||0; G.sec=data.sec||2;
+  G.blds=new Set(data.blds||[]);
+  G.deck=data.deck||[];
+  G.skipGrowth=data.skipGrowth||false;
+  G.miracle=data.miracle||false;
+  G.discount=data.discount||false;
+  G.incMod=data.incMod||0;
+  G.degradedThisTurn=data.degradedThisTurn||null;
+  G.buildsThisTurn=data.buildsThisTurn||0;
+  G.mgmtAction=data.mgmtAction||'';
+  G.players=data.players||['Joueur 1'];
+  G.pActs=data.pActs||G.players.map(()=>'');
+  G.logs=data.logs||[];
+  G.tab=data.tab||'civil';
+  G.cardTrigger=data.cardTrigger||0;
+  G.lastCard=data.lastCard||null;
+}
+
+// Save G to Firebase (MJ only)
+let _saving=false;
+function saveToFirebase(){
+  if(!IS_MJ)return;
+  if(!window._fbSet){console.warn('Firebase not ready');return;}
+  _pushUndo();
+  _saving=true;
+  setStatus('syncing');
+  window._fbSet(serializeG()).then(()=>{
+    _saving=false;
+    setStatus('connected');
+  }).catch(e=>{
+    console.error(e);
+    setStatus('disconnected');
+  });
+}
+
+function setStatus(s){
+  const el=document.getElementById('fb-status');
+  el.className='fb-status fb-'+s;
+  el.textContent={connected:'⬤ Connecté',disconnected:'⬤ Déconnecté',syncing:'⬤ Sync…',connecting:'⬤ Connexion…'}[s]||s;
+}
+
+// Patch all MJ actions to auto-save
+const _origRenderAll=renderAll;
+function renderAll(){_origRenderAll();}
+
+// All functions that mutate G and should trigger a save:
+const _MJ_ACTIONS=['drawEvent','applyResources','nextTurn','confirmBuild','confirmChoice',
+  'closeChoice','transferGold','boostPros','setMgmtAction','setPlayerAction',
+  'addPlayer','removePlayer','doSec'];
+
+// We wrap them after definition — see end of init
+
+// ══ INIT ══
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
+document.getElementById('choice-modal').addEventListener('click',e=>{if(e.target===document.getElementById('choice-modal'))closeChoice();});
+document.getElementById('deck-modal').addEventListener('click',e=>{if(e.target===document.getElementById('deck-modal'))closeDeckModal();});
+document.getElementById('card-fs-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('card-fs-overlay'))closeCardFullscreen();});
+document.getElementById('reset-modal').addEventListener('click',e=>{if(e.target===document.getElementById('reset-modal'))closeResetModal();});
+
+// Disable all interactive controls for viewers
+function applyViewerMode(){
+  if(IS_MJ)return;
+  // Disable buttons and selects that mutate state
+  const selectors=[
+    '#btn-draw','#btn-res','#btn-next',
+    '#pros-boost-btn','.transfer-btn',
+    '.mini-btn','.flow-btn',
+    '#choice-ok','#m-ok',
+    '.act-sel'
+  ];
+  selectors.forEach(s=>{
+    document.querySelectorAll(s).forEach(el=>{
+      el.disabled=true;
+      el.style.opacity='0.45';
+      el.style.pointerEvents='none';
+    });
+  });
+  // Also disable shop cards
+  document.querySelectorAll('.shop-card.can-build').forEach(c=>{
+    c.onclick=null;c.style.cursor='default';
+  });
+}
+
+// Track last card trigger to know when to animate
+let _lastCardTrigger=0;
+
+// Called every time Firebase data changes (all clients)
+function onFirebaseUpdate(data){
+  if(!data){
+    // No state yet — MJ initialises
+    if(IS_MJ){
+      initDeck();
+      G.pActs=G.players.map(()=>'');
+      G.mgmtAction='';
+      G.cardTrigger=0;
+      G.lastCard=null;
+      saveToFirebase();
+      renderAll();
+      lg("⚔ Château d'Aiglion — Que le domaine prospère !",'le-good');
+      saveToFirebase();
+    } else {
+      setStatus('connecting');
+      renderAll();
+      lg("En attente de la partie... Le MJ doit ouvrir l'app.",'le-event');
+    }
+    return;
+  }
+
+  // Check if a new card was drawn (trigger changed)
+  const newTrigger=data.cardTrigger||0;
+  const cardJustDrawn = newTrigger > _lastCardTrigger;
+  _lastCardTrigger = newTrigger;
+
+  deserializeG(data);
+  renderAll();
+
+  // Trigger card animation on ALL clients when a new card arrives
+  if(cardJustDrawn && G.lastCard){
+    const {evId,clr,lbl}=G.lastCard;
+    const ev=EVTS[evId];
+    if(ev) showCard(ev,clr,lbl);
+  }
+
+  // Re-apply log display
+  if(G.logs.length){
+    const h=G.logs.map(e=>`<div class="log-entry ${e.cls}">${e.msg}</div>`).join('');
+    document.getElementById('log-right').innerHTML=h;
+  }
+
+  setStatus('connected');
+  if(!IS_MJ) setTimeout(applyViewerMode, 50);
+}
+
+// Start listening — works for both MJ and viewers
+function startFirebase(){
+  if(!window._fbListen){
+    setTimeout(startFirebase,200);
+    return;
+  }
+  setStatus('connecting');
+  window._fbListen(onFirebaseUpdate);
+}
+
+// Patch MJ action functions to auto-save after execution
+// We use a small wrapper approach called after all functions are defined
+function patchMjActions(){
+  const scope=window;
+  _MJ_ACTIONS.forEach(name=>{
+    const orig=scope[name];
+    if(typeof orig!=='function')return;
+    scope[name]=function(...args){
+      const result=orig.apply(this,args);
+      if(IS_MJ) saveToFirebase();
+      return result;
+    };
+  });
+}
+
+// Also patch drawEvent specially to store lastCard + bump cardTrigger
+const _origDrawEvent=window.drawEvent;
+window.drawEvent=function(){
+  _origDrawEvent();
+  if(IS_MJ){
+    // lastCard is set during applyEvent via showCard — capture it
+    if(_curCardEv){
+      G.lastCard={
+        evId:Object.keys(EVTS).find(k=>EVTS[k]===_curCardEv)||null,
+        clr:_curCardClr,
+        lbl:''
+      };
+      G.cardTrigger=(G.cardTrigger||0)+1;
+      _lastCardTrigger=G.cardTrigger; // MJ doesn't re-animate
+    }
+    saveToFirebase();
+  }
+};
+
+// Same for confirmChoice (réseau d'espions)
+const _origConfirmChoice=window.confirmChoice;
+window.confirmChoice=function(){
+  _origConfirmChoice();
+  if(IS_MJ && _curCardEv){
+    G.lastCard={
+      evId:Object.keys(EVTS).find(k=>EVTS[k]===_curCardEv)||null,
+      clr:_curCardClr,lbl:''
+    };
+    G.cardTrigger=(G.cardTrigger||0)+1;
+    _lastCardTrigger=G.cardTrigger;
+    saveToFirebase();
+  }
+};
+
+
+// ══ RESET ══
+function openResetModal(){
+  document.getElementById('reset-modal').classList.add('open');
+}
+function closeResetModal(){
+  document.getElementById('reset-modal').classList.remove('open');
+}
+function confirmReset(){
+  closeResetModal();
+  // Clear undo stack — reset is a fresh start
+  _undoStack.length=0;
+  _refreshUndoBtn();
+  // Re-initialise G to defaults
+  G.turn=1;G.phase=0;G.gold=300;G.pop=55;G.pros=0;G.sec=2;
+  G.blds=new Set();
+  G.skipGrowth=false;G.miracle=false;G.discount=false;
+  G.incMod=0;G.degradedThisTurn=null;G.buildsThisTurn=0;
+  G.mgmtAction='';G.pActs=G.players.map(()=>'');
+  G.logs=[];G.tab='civil';
+  G.cardTrigger=0;G.lastCard=null;
+  initDeck();
+  resetCard();
+  renderAll();
+  lg("⚔ Domaine réinitialisé — nouvelle partie !",'le-turn');
+  saveToFirebase();
+}
+
+patchMjActions();
+startFirebase();
+</script>
+</body>
+</html>
