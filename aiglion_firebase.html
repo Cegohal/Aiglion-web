@@ -146,9 +146,10 @@ header h1{font-family:'Cinzel',serif;font-size:1.3rem;color:var(--gold);letter-s
 .town-canvas::before{content:'';position:absolute;top:6%;left:8%;width:90px;height:18px;background:rgba(255,255,255,.15);border-radius:50%;box-shadow:140px 6px 0 rgba(255,255,255,.1),300px -3px 0 rgba(255,255,255,.12);pointer-events:none}
 .zone-lbl{position:absolute;font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.5);pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.7)}
 .town-road{position:absolute;top:32%;height:20%;left:46%;width:8%;background:linear-gradient(180deg,#9a7a52,#8a6a42,#7a5a32);clip-path:polygon(25% 0%,75% 0%,100% 100%,0% 100%);pointer-events:none;opacity:.7}
-.town-zone{position:absolute;top:32%;height:58%;display:flex;flex-wrap:wrap;align-content:flex-end;padding:10px 8px;gap:8px}
-.zone-village{left:0;width:50%;justify-content:flex-start}
-.zone-chateau{left:50%;width:50%;justify-content:flex-end}
+.town-zone{position:absolute;top:32%;height:58%;display:grid;padding:8px;gap:6px;align-content:end}
+.zone-village{left:0;width:50%;grid-template-columns:repeat(4,1fr)}
+.zone-chateau{left:50%;width:50%;grid-template-columns:repeat(3,1fr)}
+.bld-slot{display:flex;align-items:flex-end;justify-content:center}
 
 /* BUILDING STICKER */
 .bld-sticker{display:flex;flex-direction:column;align-items:center;cursor:default;animation:pop .35s cubic-bezier(.175,.885,.32,1.275);position:relative}
@@ -289,6 +290,57 @@ body.is-viewer #m-ok,
 body.is-viewer #choice-ok {
   pointer-events:none!important;
   opacity:0.42!important;
+}
+
+/* ══ RESPONSIVE MOBILE ══ */
+@media (max-width: 700px) {
+  body{height:auto;overflow:auto}
+  header{padding:7px 10px;flex-wrap:wrap;gap:6px}
+  header h1{font-size:.95rem}
+  .hdr-right{gap:6px;flex-wrap:wrap}
+  .turn-pill{font-size:.62rem;padding:3px 8px}
+  .phase-ind{font-size:.58rem;padding:3px 8px}
+  .deck-btn,.undo-btn,.reset-btn{font-size:.58rem;padding:4px 8px}
+  .mj-badge{font-size:.58rem;padding:3px 7px}
+  .fb-status{font-size:.58rem;padding:3px 7px}
+
+  /* Stack layout vertically */
+  .layout{display:flex;flex-direction:column;height:auto;overflow:visible}
+  .sidebar{border:none;border-bottom:2px solid var(--gold-dark);max-height:none;overflow:visible}
+  .sidebar-l{order:1}
+  .center{order:2}
+  .sidebar-r{order:3}
+
+  /* Town: smaller, full width */
+  .town-canvas{height:200px}
+  .bld-sticker svg{width:34px!important;height:34px!important}
+  .bld-sticker-lbl{font-size:.38rem;max-width:42px}
+  .shop-panel{flex-direction:column}
+  .shop-tabs{flex-wrap:wrap}
+  .shop-list{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+
+  /* Sidebars full width, scrollable */
+  .s-scroll{max-height:220px;overflow-y:auto}
+  .stats-panel{padding:8px 10px}
+  .big-stat{font-size:1rem}
+
+  /* Event card */
+  .evt-area{padding:8px}
+  .evt-c-card{max-width:100%}
+
+  /* Players panel */
+  .pa-wrap{padding:8px 10px}
+
+  /* Modals full screen on mobile */
+  .modal-box,.choice-box,.deck-box{width:96%;max-width:96%;max-height:90vh;overflow-y:auto;padding:14px}
+  .choice-cards{flex-direction:column}
+
+  /* Transfer panel */
+  .transfer-panel{padding:8px 10px}
+  .transfer-input{width:70px}
+
+  /* Log */
+  .s-scroll{font-size:.72rem}
 }
 </style>
 </head>
@@ -595,7 +647,11 @@ const EVTS={
   'degradation':{name:'Dégradation des infrastructures',type:'negative',flavor:"Des poutres pourries, un mur qui s'effrite — l'entretien a été négligé.",eff:"Sécu −1. Si 0 : un bâtiment aléatoire est hors service ce tour.",apply(){
     if(G.sec>0){G.sec--;lg('Dégradation : Sécu −1','le-bad');}
     else{
-      const targets=[...G.blds].filter(id=>!BASE_BLDS_IDS.has(id));
+      const targets=[...G.blds].filter(id=>{
+        if(BASE_BLDS_IDS.has(id))return false;
+        const replacedByUpgrade=BLDS.some(b=>b.rep===id&&G.blds.has(b.id));
+        return !replacedByUpgrade;
+      });
       if(targets.length>0){
         shuf(targets);
         G.degradedThisTurn=targets[0];
@@ -623,8 +679,15 @@ const EVTS={
     if(G.sec>=3){G.sec-=3;lg('Attaque monstre : Sécu −3','le-bad');}
     else{
       G.sec=0;G.pros=Math.max(0,G.pros-1);G.pop-=20;
-      // Détruire un bâtiment aléatoire construit (jamais les bases)
-      const destroyable=[...G.blds].filter(id=>!BASE_BLDS_IDS.has(id));
+      // Détruire un bâtiment aléatoire — on cible le sommet de chaque chaîne d'upgrade,
+      // jamais les bâtiments remplacés par une amélioration ni les bases non-destructibles.
+      // Un bâtiment est destructible s'il est construit ET n'est pas remplacé par un upgrade.
+      const destroyable=[...G.blds].filter(id=>{
+        if(BASE_BLDS_IDS.has(id))return false; // jamais les bases
+        // Si un upgrade de ce bâtiment est construit, ce bâtiment est "remplacé" → pas ciblable
+        const replacedByUpgrade=BLDS.some(b=>b.rep===id&&G.blds.has(b.id));
+        return !replacedByUpgrade;
+      });
       if(destroyable.length>0){
         shuf(destroyable);
         const victim=destroyable[0];
@@ -759,26 +822,100 @@ function renderStats(){
   }
 }
 
+// Fixed slot order for each zone — defines the visual grid position of every building.
+// Bases and upgrades share the same slot (only the visible one renders).
+// Village: 4 columns. Château: 3 columns.
+const VILLAGE_SLOTS=[
+  // Row 1 (top) — infrastructure
+  {slot:'forge',      ids:['forge-base','forge-amelioree']},
+  {slot:'auberge',    ids:['auberge-base','auberge-accueillante','auberge-chateau-reputee']},
+  {slot:'magasin',    ids:['magasin-base','comptoir','echoppes-specialisee']},
+  {slot:'routes',     ids:['routes']},
+  // Row 2 — housing
+  {slot:'logements',  ids:['logements','quartier-residentiel','faubourgs']},
+  {slot:'champs',     ids:['champs-culture','exploitation-agricole']},
+  {slot:'sanctuaire', ids:['sanctuaire']},
+  {slot:'marche',     ids:['marche-permanent']},
+  // Row 3 — culture/economy
+  {slot:'ecole',      ids:['ecole']},
+  {slot:'bain',       ids:['bain-public']},
+  {slot:'jardins',    ids:['jardins']},
+  {slot:'peage',      ids:['peage-normal','peage-riche']},
+  // Row 4 — advanced
+  {slot:'salle-jeux', ids:['salle-de-jeux']},
+  {slot:'biblio',     ids:['bibliotheque']},
+  {slot:'alchimie',   ids:['atelier-alchimie']},
+  {slot:'scriptorium',ids:['scriptorium']},
+];
+const CHATEAU_SLOTS=[
+  // Row 1
+  {slot:'murs',       ids:['murs-base','chateau-bourg']},
+  {slot:'caserne',    ids:['caserne-base','caserne-remise-neuf']},
+  {slot:'cellules',   ids:['cellules']},
+  // Row 2
+  {slot:'ecuries',    ids:['ecuries-base','vastes-ecuries']},
+  {slot:'tour',       ids:['tour-de-guet']},
+  {slot:'bailli',     ids:['bureau-bailli']},
+  // Row 3
+  {slot:'armurerie',  ids:['armurerie']},
+  {slot:'entrainement',ids:['salle-entrainement']},
+  {slot:'cercle',     ids:['cercle-teleportation']},
+  // Row 4
+  {slot:'enchanteur', ids:['atelier-enchanteur']},
+];
+
 function renderTown(){
   const zv=document.getElementById('zone-v'),zc=document.getElementById('zone-c');
-  const baseV=[{id:'forge-base',icon:'forge-base',name:'Forge basique'},{id:'auberge-base',icon:'auberge-base',name:'Auberge modeste'},{id:'magasin-base',icon:'magasin-base',name:'Magasin général'}];
-  const baseC=[{id:'murs-base',icon:'murs-base',name:'Murs & Douves'},{id:'caserne-base',icon:'caserne-base',name:'Petite caserne'},{id:'cellules',icon:'cellules',name:'Cellules'},{id:'ecuries-base',icon:'ecuries-base',name:'Écuries'}];
-  const builtV=BLDS.filter(b=>b.zone==='v'&&G.blds.has(b.id)&&!isReplaced(b.id));
-  const builtC=BLDS.filter(b=>b.zone==='c'&&G.blds.has(b.id)&&!isReplaced(b.id));
-  const visBaseV=baseV.filter(b=>!isReplaced(b.id));
-  const visBaseC=baseC.filter(b=>!isReplaced(b.id));
-  function mkSticker(bld,sz=44){
+  zv.innerHTML='';zc.innerHTML='';
+
+  function mkSticker(bld,sz=40){
     const fn=IC[bld.icon||bld.id];
     const svg=fn?fn(sz):`<svg width="${sz}" height="${sz}"><rect width="${sz}" height="${sz}" fill="#888" rx="4"/></svg>`;
-    const d=document.createElement('div');
     const isDeg=G.degradedThisTurn===bld.id;
+    const d=document.createElement('div');
     d.className='bld-sticker'+(isDeg?' degraded':'');
     d.innerHTML=svg+`<div class="bld-sticker-lbl">${bld.name}</div><div class="bld-tip">${bld.name}${isDeg?'<br><span style="color:#ff8040">⚠ Hors service ce tour</span>':''}</div>`;
     return d;
   }
-  zv.innerHTML='';zc.innerHTML='';
-  [...visBaseV,...builtV].forEach(b=>zv.appendChild(mkSticker(b)));
-  [...visBaseC,...builtC].forEach(b=>zc.appendChild(mkSticker(b)));
+
+  function renderSlots(zone, slots){
+    slots.forEach(({ids})=>{
+      const slot=document.createElement('div');
+      slot.className='bld-slot';
+      // Find the highest-priority visible building in this slot
+      // Priority: most-upgraded first (last in ids array = most upgraded)
+      let shown=null;
+      for(let i=ids.length-1;i>=0;i--){
+        const id=ids[i];
+        // Check if this id is a base building (always present) or built
+        const isBase=['forge-base','auberge-base','magasin-base','murs-base',
+                      'caserne-base','cellules','ecuries-base'].includes(id);
+        if(isBase&&!isReplaced(id)){shown={id,icon:id,name:id};break;}
+        if(G.blds.has(id)&&!isReplaced(id)){
+          const bldDef=BLDS.find(b=>b.id===id);
+          if(bldDef){shown=bldDef;break;}
+        }
+      }
+      // Fallback: show base building for base-containing slots
+      if(!shown){
+        const baseIds=['forge-base','auberge-base','magasin-base','murs-base',
+                       'caserne-base','cellules','ecuries-base'];
+        const base=ids.find(id=>baseIds.includes(id));
+        if(base&&!isReplaced(base)){
+          // Find name for base
+          const baseNames={'forge-base':'Forge basique','auberge-base':'Auberge modeste',
+            'magasin-base':'Magasin général','murs-base':'Murs & Douves',
+            'caserne-base':'Petite caserne','cellules':'Cellules','ecuries-base':'Écuries'};
+          shown={id:base,icon:base,name:baseNames[base]||base};
+        }
+      }
+      if(shown) slot.appendChild(mkSticker(shown));
+      zone.appendChild(slot);
+    });
+  }
+
+  renderSlots(zv, VILLAGE_SLOTS);
+  renderSlots(zc, CHATEAU_SLOTS);
 }
 
 function getMissingPrereqs(b){
@@ -1253,17 +1390,19 @@ function renderAll(){renderStats();renderTown();renderShop();renderPlayers();ren
 
 // ══ FIREBASE SYNC ══
 
-// Determine MJ mode from URL: ?mj=oui
-const _mjPassword = 'oui';
+// Determine MJ mode from URL: ?mj=seigneur
+const _mjPassword = 'seigneur';
 const _urlParams = new URLSearchParams(window.location.search);
 const IS_MJ = _urlParams.get('mj') === _mjPassword;
 
 // Undo history (MJ only) — stores serialized snapshots, max 20
 const _undoStack = [];
 const _UNDO_MAX = 20;
+let _skipNextPush = false; // set true when undoState saves to Firebase
 
 function _pushUndo(){
   if(!IS_MJ)return;
+  if(_skipNextPush){_skipNextPush=false;return;}
   _undoStack.push(JSON.stringify(serializeG()));
   if(_undoStack.length > _UNDO_MAX) _undoStack.shift();
   _refreshUndoBtn();
@@ -1278,16 +1417,15 @@ function undoState(){
   if(!IS_MJ||!_undoStack.length)return;
   const snap=JSON.parse(_undoStack.pop());
   deserializeG(snap);
-  G.cardTrigger=(G.cardTrigger||0); // don't re-trigger animation on undo
-  _lastCardTrigger=G.cardTrigger;
+  _lastCardTrigger=G.cardTrigger||0; // don't re-trigger animation on undo
   renderAll();
   if(G.logs.length){
-    const h=G.logs.map(e=>`<div class="log-entry ${e.cls}">${e.msg}</div>`).join('');
+    const h=G.logs.map(e=>`<div class="log-entry ${e.cls||''}">${e.msg}</div>`).join('');
     document.getElementById('log-right').innerHTML=h;
   }
   _refreshUndoBtn();
-  saveToFirebase();
-  lg('↩ Undo — état précédent restauré.','le-event');
+  // Tell _pushUndo to skip the next push triggered by saveToFirebase
+  _skipNextPush=true;
   saveToFirebase();
 }
 
