@@ -1313,24 +1313,25 @@ function serializeG(){
   };
 }
 
+function _n(v,def){return (v!=null&&v!==undefined)?v:def;}
 function deserializeG(data){
-  G.turn=data.turn||1; G.phase=data.phase||0;
-  G.gold=data.gold||0; G.pop=data.pop||55;
-  G.pros=data.pros||0; G.sec=data.sec||2;
-  G.blds=new Set(data.blds||[]);
-  G.deck=data.deck||[];
-  G.skipGrowth=data.skipGrowth||false;
-  G.miracle=data.miracle||false;
-  G.discount=data.discount||false;
-  G.incMod=data.incMod||0;
+  G.turn=_n(data.turn,1); G.phase=_n(data.phase,0);
+  G.gold=_n(data.gold,0); G.pop=_n(data.pop,55);
+  G.pros=_n(data.pros,0); G.sec=_n(data.sec,2);
+  G.blds=new Set(Array.isArray(data.blds)?data.blds:[]);
+  G.deck=Array.isArray(data.deck)?data.deck:[];
+  G.skipGrowth=!!data.skipGrowth;
+  G.miracle=!!data.miracle;
+  G.discount=!!data.discount;
+  G.incMod=_n(data.incMod,0);
   G.degradedThisTurn=data.degradedThisTurn||null;
-  G.buildsThisTurn=data.buildsThisTurn||0;
+  G.buildsThisTurn=_n(data.buildsThisTurn,0);
   G.mgmtAction=data.mgmtAction||'';
-  G.players=data.players||['Joueur 1'];
-  G.pActs=data.pActs||G.players.map(()=>'');
-  G.logs=data.logs||[];
+  G.players=Array.isArray(data.players)?data.players:['Joueur 1'];
+  G.pActs=Array.isArray(data.pActs)?data.pActs:G.players.map(()=>'');
+  G.logs=Array.isArray(data.logs)?data.logs:[];
   G.tab=data.tab||'civil';
-  G.cardTrigger=data.cardTrigger||0;
+  G.cardTrigger=_n(data.cardTrigger,0);
   G.lastCard=data.lastCard||null;
 }
 
@@ -1357,12 +1358,12 @@ function setStatus(s){
   el.textContent={connected:'⬤ Connecté',disconnected:'⬤ Déconnecté',syncing:'⬤ Sync…',connecting:'⬤ Connexion…'}[s]||s;
 }
 
-// Patch all MJ actions to auto-save
-const _origRenderAll=renderAll;
-function renderAll(){_origRenderAll();}
+// Patch all MJ actions to auto-save (renderAll is NOT wrapped — it's pure display)
 
 // All functions that mutate G and should trigger a save:
-const _MJ_ACTIONS=['drawEvent','applyResources','nextTurn','confirmBuild','confirmChoice',
+// drawEvent and confirmChoice are NOT listed here — they're manually wrapped
+// below with extra logic (cardTrigger), so patchMjActions must not double-wrap them
+const _MJ_ACTIONS=['applyResources','nextTurn','confirmBuild',
   'closeChoice','transferGold','boostPros','setMgmtAction','setPlayerAction',
   'addPlayer','removePlayer','doSec'];
 
@@ -1404,49 +1405,62 @@ let _lastCardTrigger=0;
 
 // Called every time Firebase data changes (all clients)
 function onFirebaseUpdate(data){
-  if(!data){
-    // No state yet — MJ initialises
-    if(IS_MJ){
-      initDeck();
-      G.pActs=G.players.map(()=>'');
-      G.mgmtAction='';
-      G.cardTrigger=0;
-      G.lastCard=null;
-      saveToFirebase();
-      renderAll();
-      lg("⚔ Château d'Aiglion — Que le domaine prospère !",'le-good');
-      saveToFirebase();
-    } else {
-      setStatus('connecting');
-      renderAll();
-      lg("En attente de la partie... Le MJ doit ouvrir l'app.",'le-event');
+  try {
+    if(!data){
+      // No state in Firebase yet — only MJ initialises
+      if(IS_MJ){
+        initDeck();
+        G.pActs=G.players.map(()=>'');
+        G.mgmtAction='';
+        G.cardTrigger=0;
+        G.lastCard=null;
+        renderAll();
+        lg("⚔ Château d'Aiglion — Que le domaine prospère !",'le-good');
+        saveToFirebase();
+      } else {
+        // Spectator: wait, show message, keep polling via Firebase listener
+        setStatus('connecting');
+        document.getElementById('log-right').innerHTML=
+          '<div class="log-entry le-event">En attente de la partie… Le MJ doit ouvrir l'app.</div>';
+      }
+      return;
     }
-    return;
+
+    // Check if a new card was drawn (cardTrigger bumped)
+    const newTrigger=data.cardTrigger||0;
+    const cardJustDrawn = newTrigger > _lastCardTrigger;
+    _lastCardTrigger = newTrigger;
+
+    // Load Firebase state into G
+    deserializeG(data);
+
+    // Render everything
+    renderAll();
+
+    // Restore log display from G.logs
+    if(G.logs && G.logs.length){
+      const h=G.logs.map(e=>`<div class="log-entry ${e.cls||''}">${e.msg}</div>`).join('');
+      document.getElementById('log-right').innerHTML=h;
+    }
+
+    // Trigger card animation on ALL clients when a new card arrives
+    if(cardJustDrawn && G.lastCard){
+      const {evId,clr}=G.lastCard;
+      const ev=EVTS[evId];
+      if(ev){
+        const clrMap={positive:'#60c060',neutral:'#8090a0',negative:'#c06060',grave:'#900020'};
+        const lblMap={positive:'✦ Positif',neutral:'◆ Neutre',negative:'⚠ Négatif',grave:'☠ Grave'};
+        showCard(ev, clr||clrMap[ev.type]||'#808080', lblMap[ev.type]||'');
+      }
+    }
+
+    setStatus('connected');
+    if(!IS_MJ) setTimeout(applyViewerMode, 50);
+
+  } catch(err) {
+    console.error('onFirebaseUpdate error:', err);
+    setStatus('disconnected');
   }
-
-  // Check if a new card was drawn (trigger changed)
-  const newTrigger=data.cardTrigger||0;
-  const cardJustDrawn = newTrigger > _lastCardTrigger;
-  _lastCardTrigger = newTrigger;
-
-  deserializeG(data);
-  renderAll();
-
-  // Trigger card animation on ALL clients when a new card arrives
-  if(cardJustDrawn && G.lastCard){
-    const {evId,clr,lbl}=G.lastCard;
-    const ev=EVTS[evId];
-    if(ev) showCard(ev,clr,lbl);
-  }
-
-  // Re-apply log display
-  if(G.logs.length){
-    const h=G.logs.map(e=>`<div class="log-entry ${e.cls}">${e.msg}</div>`).join('');
-    document.getElementById('log-right').innerHTML=h;
-  }
-
-  setStatus('connected');
-  if(!IS_MJ) setTimeout(applyViewerMode, 50);
 }
 
 // Start listening — works for both MJ and viewers
