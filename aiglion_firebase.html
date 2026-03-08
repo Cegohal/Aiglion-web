@@ -39,21 +39,20 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 const domainRef = ref(db, 'aiglion/state');
 
-// Sign in anonymously — transparent to users, required by Firebase rules
-signInAnonymously(auth).catch(err => {
-  console.error('Authentification anonyme échouée :', err);
-});
-
-// Wait for auth before exposing Firebase operations
-onAuthStateChanged(auth, (user) => {
-  if (!user) return; // not yet authenticated
-  // Expose Firebase write/listen globally so the main script can use them
-  window._fbSet = (data) => set(domainRef, data);
-  window._fbListen = (cb) => onValue(domainRef, (snapshot) => cb(snapshot.val()));
-  window._fbReady = true;
-  // Notify main script that Firebase is ready (in case startFirebase already ran)
-  window.dispatchEvent(new Event('fbReady'));
-});
+// Sign in anonymously then wire up Firebase ops directly into the main script
+signInAnonymously(auth)
+  .then(() => {
+    // Auth succeeded — expose ops and call startFirebase (defined in main script)
+    window._fbSet    = (data) => set(domainRef, data);
+    window._fbListen = (cb)   => onValue(domainRef, snap => cb(snap.val()));
+    // startFirebase is defined in the main <script> tag below — call it directly
+    if(typeof startFirebase === 'function') startFirebase();
+  })
+  .catch(err => {
+    console.error('Authentification anonyme échouée :', err);
+    // Show disconnected status if auth fails
+    if(typeof setStatus === 'function') setStatus('disconnected');
+  });
 </script>
 
 <style>
@@ -1623,14 +1622,9 @@ function onFirebaseUpdate(data){
   }
 }
 
-// Start listening — works for both MJ and viewers
+// Start listening — called directly by the Firebase module once auth is ready
 function startFirebase(){
-  if(!window._fbListen){
-    // Auth not ready yet — retry in 200ms or immediately on fbReady event
-    window.addEventListener('fbReady', startFirebase, {once:true});
-    setTimeout(startFirebase,200);
-    return;
-  }
+  if(!window._fbListen){ console.warn('startFirebase called before _fbListen ready'); return; }
   setStatus('connecting');
   window._fbListen(onFirebaseUpdate);
 }
@@ -1713,7 +1707,7 @@ function confirmReset(){
 }
 
 patchMjActions();
-startFirebase();
+// startFirebase() is called by the Firebase auth module once signInAnonymously succeeds
 </script>
 </body>
 </html>
