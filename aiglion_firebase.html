@@ -586,6 +586,56 @@ body.is-viewer #choice-ok {
   </div>
 </div>
 
+<!-- DEBUG MODAL -->
+<div class="debug-modal" id="debug-modal">
+  <div class="debug-box">
+    <h2>🛠 Mode Debug — Château d'Aiglion</h2>
+
+    <!-- Stats -->
+    <div class="dbg-section">
+      <div class="dbg-section-t">Paramètres</div>
+      <div class="dbg-row">
+        <span class="dbg-label">Or</span>
+        <button class="dbg-btn minus" onclick="dbgStat('gold',-50)">−50</button>
+        <button class="dbg-btn minus" onclick="dbgStat('gold',-10)">−10</button>
+        <span class="dbg-val" id="dbg-gold">—</span>
+        <button class="dbg-btn plus" onclick="dbgStat('gold',10)">+10</button>
+        <button class="dbg-btn plus" onclick="dbgStat('gold',50)">+50</button>
+        <button class="dbg-btn plus" onclick="dbgStat('gold',500)">+500</button>
+        <input class="dbg-input" id="dbg-gold-in" type="number" placeholder="valeur">
+        <button class="dbg-btn action" onclick="dbgSet('gold','dbg-gold-in')">Set</button>
+      </div>
+      <div class="dbg-row">
+        <span class="dbg-label">Population</span>
+        <button class="dbg-btn minus" onclick="dbgStat('pop',-20)">−20</button>
+        <button class="dbg-btn minus" onclick="dbgStat('pop',-5)">−5</button>
+        <span class="dbg-val" id="dbg-pop">—</span>
+        <button class="dbg-btn plus" onclick="dbgStat('pop',5)">+5</button>
+        <button class="dbg-btn plus" onclick="dbgStat('pop',20)">+20</button>
+        <input class="dbg-input" id="dbg-pop-in" type="number" placeholder="valeur">
+        <button class="dbg-btn action" onclick="dbgSet('pop','dbg-pop-in')">Set</button>
+      </div>
+      <div class="dbg-row">
+        <span class="dbg-label">Prospérité</span>
+        <button class="dbg-btn minus" onclick="dbgStat('pros',-1)">−1</button>
+        <span class="dbg-val" id="dbg-pros">—</span>
+        <button class="dbg-btn plus" onclick="dbgStat('pros',1)">+1</button>
+      </div>
+      <div class="dbg-row">
+        <span class="dbg-label">Sécurité</span>
+        <button class="dbg-btn minus" onclick="dbgStat('sec',-1)">−1</button>
+        <span class="dbg-val" id="dbg-sec">—</span>
+        <button class="dbg-btn plus" onclick="dbgStat('sec',1)">+1</button>
+      </div>
+      <div class="dbg-row">
+        <span class="dbg-label">Tour</span>
+        <button class="dbg-btn minus" onclick="dbgStat('turn',-1)">−1</button>
+        <span class="dbg-val" id="dbg-turn">—</span>
+        <button class="dbg-btn plus" onclick="dbgStat('turn',1)">+1</button>
+      </div>
+    </div>
+
+
 <script>
 // ══ SVG ICONS (preserved from previous version) ══
 // ══ BUILDING ICONS — PNG from img/ folder ══
@@ -593,44 +643,44 @@ body.is-viewer #choice-ok {
 // Place your PNG files in the 'img/' folder next to the HTML file on GitHub.
 // File names must match exactly: img/forge-base.png, img/auberge-base.png, etc.
 const IC = {
-  'armurerie': s=>`<img src="img/armurerie.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'atelier-alchimie': s=>`<img src="img/atelier-alchimie.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'atelier-enchanteur': s=>`<img src="img/atelier-enchanteur.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'auberge-accueillante': s=>`<img src="img/auberge-accueillante.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'auberge-base': s=>`<img src="img/auberge-base.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'auberge-chateau-reputee': s=>`<img src="img/auberge-chateau-reputee.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'bain-public': s=>`<img src="img/bain-public.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'bibliotheque': s=>`<img src="img/bibliotheque.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'bureau-bailli': s=>`<img src="img/bureau-bailli.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'caserne-base': s=>`<img src="img/caserne-base.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'caserne-remise-neuf': s=>`<img src="img/caserne-remise-neuf.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'cellules': s=>`<img src="img/cellules.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'cercle-teleportation': s=>`<img src="img/cercle-teleportation.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'champs-culture': s=>`<img src="img/champs-culture.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'chateau-bourg': s=>`<img src="img/chateau-bourg.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'comptoir': s=>`<img src="img/comptoir.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'echoppes-specialisee': s=>`<img src="img/echoppes-specialisee.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'ecole': s=>`<img src="img/ecole.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'ecuries-base': s=>`<img src="img/ecuries-base.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'exploitation-agricole': s=>`<img src="img/exploitation-agricole.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'faubourgs': s=>`<img src="img/faubourgs.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'forge-amelioree': s=>`<img src="img/forge-amelioree.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'forge-base': s=>`<img src="img/forge-base.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'jardins': s=>`<img src="img/jardins.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'logements': s=>`<img src="img/logements.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'magasin-base': s=>`<img src="img/magasin-base.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'marche-permanent': s=>`<img src="img/marche-permanent.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'murs-base': s=>`<img src="img/murs-base.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'peage-normal': s=>`<img src="img/peage-normal.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'peage-riche': s=>`<img src="img/peage-riche.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'quartier-residentiel': s=>`<img src="img/quartier-residentiel.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'routes': s=>`<img src="img/routes.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'salle-de-jeux': s=>`<img src="img/salle-de-jeux.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'salle-entrainement': s=>`<img src="img/salle-entrainement.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'sanctuaire': s=>`<img src="img/sanctuaire.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'scriptorium': s=>`<img src="img/scriptorium.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'tour-de-guet': s=>`<img src="img/tour-de-guet.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`,
-  'vastes-ecuries': s=>`<img src="img/vastes-ecuries.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated">`
+  'armurerie': s=>`<img src="img/armurerie.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'atelier-alchimie': s=>`<img src="img/atelier-alchimie.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'atelier-enchanteur': s=>`<img src="img/atelier-enchanteur.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'auberge-accueillante': s=>`<img src="img/auberge-accueillante.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'auberge-base': s=>`<img src="img/auberge-base.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'auberge-chateau-reputee': s=>`<img src="img/auberge-chateau-reputee.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'bain-public': s=>`<img src="img/bain-public.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'bibliotheque': s=>`<img src="img/bibliotheque.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'bureau-bailli': s=>`<img src="img/bureau-bailli.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'caserne-base': s=>`<img src="img/caserne-base.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'caserne-remise-neuf': s=>`<img src="img/caserne-remise-neuf.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'cellules': s=>`<img src="img/cellules.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'cercle-teleportation': s=>`<img src="img/cercle-teleportation.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'champs-culture': s=>`<img src="img/champs-culture.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'chateau-bourg': s=>`<img src="img/chateau-bourg.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'comptoir': s=>`<img src="img/comptoir.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'echoppes-specialisee': s=>`<img src="img/echoppes-specialisee.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'ecole': s=>`<img src="img/ecole.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'ecuries-base': s=>`<img src="img/ecuries-base.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'exploitation-agricole': s=>`<img src="img/exploitation-agricole.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'faubourgs': s=>`<img src="img/faubourgs.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'forge-amelioree': s=>`<img src="img/forge-amelioree.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'forge-base': s=>`<img src="img/forge-base.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'jardins': s=>`<img src="img/jardins.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'logements': s=>`<img src="img/logements.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'magasin-base': s=>`<img src="img/magasin-base.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'marche-permanent': s=>`<img src="img/marche-permanent.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'murs-base': s=>`<img src="img/murs-base.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'peage-normal': s=>`<img src="img/peage-normal.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'peage-riche': s=>`<img src="img/peage-riche.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'quartier-residentiel': s=>`<img src="img/quartier-residentiel.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'routes': s=>`<img src="img/routes.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'salle-de-jeux': s=>`<img src="img/salle-de-jeux.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'salle-entrainement': s=>`<img src="img/salle-entrainement.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'sanctuaire': s=>`<img src="img/sanctuaire.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'scriptorium': s=>`<img src="img/scriptorium.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'tour-de-guet': s=>`<img src="img/tour-de-guet.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`,
+  'vastes-ecuries': s=>`<img src="img/vastes-ecuries.png" width="${s}" height="${s}" style="object-fit:contain;image-rendering:pixelated" onerror="this.onerror=null;this.src='img/placeholder.png'">`
 };
 
 // ══ CONSTANTS ══
@@ -1463,6 +1513,7 @@ function renderAll(){renderStats();renderTown();renderShop();renderPlayers();ren
 const _mjPassword = 'seigneur';
 const _urlParams = new URLSearchParams(window.location.search);
 const IS_MJ = _urlParams.get('mj') === _mjPassword;
+let _lastCardTrigger = 0; // tracks card animation across Firebase updates
 
 // Undo history (MJ only) — stores serialized snapshots, max 20
 const _undoStack = [];
@@ -1502,6 +1553,8 @@ function undoState(){
 if(IS_MJ) document.getElementById('mj-badge').style.display='';
 // Hide action controls for viewers
 if(!IS_MJ) document.body.classList.add('is-viewer');
+// Show connecting immediately while auth is in progress
+setStatus('connecting');
 
 // Serialise G for Firebase (Set → Array, strip functions)
 function serializeG(){
@@ -1607,9 +1660,6 @@ function applyViewerMode(){
     c.onclick=null;c.style.cursor='default';
   });
 }
-
-// Track last card trigger to know when to animate
-let _lastCardTrigger=0;
 
 // Called every time Firebase data changes (all clients)
 function onFirebaseUpdate(data){
@@ -1860,55 +1910,6 @@ function dbgSet(stat, inputId){
 patchMjActions();
 // startFirebase() is called by the Firebase auth module once signInAnonymously succeeds
 </script>
-
-<!-- DEBUG MODAL -->
-<div class="debug-modal" id="debug-modal">
-  <div class="debug-box">
-    <h2>🛠 Mode Debug — Château d'Aiglion</h2>
-
-    <!-- Stats -->
-    <div class="dbg-section">
-      <div class="dbg-section-t">Paramètres</div>
-      <div class="dbg-row">
-        <span class="dbg-label">Or</span>
-        <button class="dbg-btn minus" onclick="dbgStat('gold',-50)">−50</button>
-        <button class="dbg-btn minus" onclick="dbgStat('gold',-10)">−10</button>
-        <span class="dbg-val" id="dbg-gold">—</span>
-        <button class="dbg-btn plus" onclick="dbgStat('gold',10)">+10</button>
-        <button class="dbg-btn plus" onclick="dbgStat('gold',50)">+50</button>
-        <button class="dbg-btn plus" onclick="dbgStat('gold',500)">+500</button>
-        <input class="dbg-input" id="dbg-gold-in" type="number" placeholder="valeur">
-        <button class="dbg-btn action" onclick="dbgSet('gold','dbg-gold-in')">Set</button>
-      </div>
-      <div class="dbg-row">
-        <span class="dbg-label">Population</span>
-        <button class="dbg-btn minus" onclick="dbgStat('pop',-20)">−20</button>
-        <button class="dbg-btn minus" onclick="dbgStat('pop',-5)">−5</button>
-        <span class="dbg-val" id="dbg-pop">—</span>
-        <button class="dbg-btn plus" onclick="dbgStat('pop',5)">+5</button>
-        <button class="dbg-btn plus" onclick="dbgStat('pop',20)">+20</button>
-        <input class="dbg-input" id="dbg-pop-in" type="number" placeholder="valeur">
-        <button class="dbg-btn action" onclick="dbgSet('pop','dbg-pop-in')">Set</button>
-      </div>
-      <div class="dbg-row">
-        <span class="dbg-label">Prospérité</span>
-        <button class="dbg-btn minus" onclick="dbgStat('pros',-1)">−1</button>
-        <span class="dbg-val" id="dbg-pros">—</span>
-        <button class="dbg-btn plus" onclick="dbgStat('pros',1)">+1</button>
-      </div>
-      <div class="dbg-row">
-        <span class="dbg-label">Sécurité</span>
-        <button class="dbg-btn minus" onclick="dbgStat('sec',-1)">−1</button>
-        <span class="dbg-val" id="dbg-sec">—</span>
-        <button class="dbg-btn plus" onclick="dbgStat('sec',1)">+1</button>
-      </div>
-      <div class="dbg-row">
-        <span class="dbg-label">Tour</span>
-        <button class="dbg-btn minus" onclick="dbgStat('turn',-1)">−1</button>
-        <span class="dbg-val" id="dbg-turn">—</span>
-        <button class="dbg-btn plus" onclick="dbgStat('turn',1)">+1</button>
-      </div>
-    </div>
 
     <!-- Buildings -->
     <div class="dbg-section">
