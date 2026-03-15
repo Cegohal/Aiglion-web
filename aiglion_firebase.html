@@ -39,19 +39,24 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 const domainRef = ref(db, 'aiglion/state');
 
-// Sign in anonymously then wire up Firebase ops directly into the main script
+// Sign in anonymously then wire up Firebase ops
 signInAnonymously(auth)
   .then(() => {
-    // Auth succeeded — expose ops and call startFirebase (defined in main script)
     window._fbSet    = (data) => set(domainRef, data);
     window._fbListen = (cb)   => onValue(domainRef, snap => cb(snap.val()));
-    // startFirebase is defined in the main <script> tag below — call it directly
-    if(typeof startFirebase === 'function') startFirebase();
+    // startFirebase is defined in the classic <script> below.
+    // ES modules run after classic scripts, so startFirebase is always defined here.
+    // But call via setTimeout(0) to be safe and let the browser finish rendering first.
+    setTimeout(() => {
+      if(typeof startFirebase === 'function') startFirebase();
+      else console.error('startFirebase not found');
+    }, 0);
   })
   .catch(err => {
     console.error('Authentification anonyme échouée :', err);
-    // Show disconnected status if auth fails
-    if(typeof setStatus === 'function') setStatus('disconnected');
+    setTimeout(() => {
+      if(typeof setStatus === 'function') setStatus('disconnected');
+    }, 0);
   });
 </script>
 
@@ -402,7 +407,7 @@ body.is-viewer #choice-ok {
     <button class="reset-btn mj-only" onclick="openResetModal()" title="Réinitialiser le domaine">⟳ Reset</button>
     <button class="deck-btn" onclick="openDeckModal()">🂠 Voir le Deck</button>
     <div id="debug-badge" class="debug-badge" style="display:none">🛠 DEBUG</div>
-    <button id="debug-btn" class="debug-btn mj-only" style="display:none" onclick="openDebugModal()">🛠 Debug</button>
+    <button id="debug-btn" class="debug-btn" style="display:none" onclick="openDebugModal()">🛠 Debug</button>
     <div class="phase-ind ph-event" id="phase-ind">Phase : Événement</div>
     <div class="turn-pill" id="turn-pill">Tour I</div>
   </div>
@@ -1540,7 +1545,7 @@ function deserializeG(data){
 // Save G to Firebase (MJ only)
 let _saving=false;
 function saveToFirebase(){
-  if(!IS_MJ)return;
+  if(!IS_MJ && !IS_DEBUG)return;
   if(!window._fbSet){console.warn('Firebase not ready');return;}
   _pushUndo();
   _saving=true;
@@ -1758,6 +1763,9 @@ const IS_DEBUG = _urlParams.get('debug') === _debugPassword;
 if(IS_DEBUG){
   document.getElementById('debug-badge').style.display='';
   document.getElementById('debug-btn').style.display='';
+  // Debug mode gets write access even without MJ password
+  // Remove is-viewer if it was set (debug can be used without ?mj=)
+  document.body.classList.remove('is-viewer');
 }
 
 function openDebugModal(){
